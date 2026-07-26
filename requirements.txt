@@ -2,3 +2,4 @@ pandas
 folium
 scikit-learn
 numpy
+osmnx
