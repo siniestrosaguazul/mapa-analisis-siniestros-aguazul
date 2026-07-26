@@ -223,8 +223,9 @@ function construirMapa(headers){
   const inc=arr=>n=>arr.some(t=>n.includes(t));
   const eq =arr=>n=>arr.some(t=>n===t);
 
-  m.lat      = pick(inc(['latitud','coordy'])) || pick(eq(['lat','y']));
-  m.lon      = pick(inc(['longitud','coordx'])) || pick(eq(['lon','lng','long','x']));
+  m.lat      = pick(inc(['latitud'])) || pick(eq(['lat','y']));
+  m.lon      = pick(inc(['longitud'])) || pick(eq(['lon','lng','long','x']));
+  m.coords   = pick(inc(['coordenada']));
   m.fecha    = pick(inc(['fecha']));
   m.hora     = pick(inc(['hora']));
   m.gravedad = pick(inc(['graved','severidad']));
@@ -239,6 +240,36 @@ function construirMapa(headers){
 }
 function aNumero(v){ return parseFloat(String(v==null?'':v).replace(',','.').trim()); }
 function aEntero(v){ return parseInt(String(v==null?'':v).replace(/[^\d-]/g,''),10)||0; }
+
+// Convierte una coordenada en grados-minutos-segundos a decimal.
+// Ej: 5°10'9.10"N -> 5.169194 ;  72°32'59.45"O -> -72.549847
+function parseDMS(str){
+  if(str==null) return NaN;
+  const s=String(str).trim();
+  if(!s) return NaN;
+  // Si no trae símbolos de grados, se asume decimal directo.
+  if(!/[°'"′″NSEOWnseow]/.test(s)){ return aNumero(s); }
+  const m=s.match(/(-?\d+(?:[.,]\d+)?)\s*[°]\s*(\d+(?:[.,]\d+)?)\s*['′]\s*(\d+(?:[.,]\d+)?)/);
+  if(!m){ const d=aNumero(s); return isNaN(d)?NaN:d; }
+  const g=parseFloat(m[1].replace(',','.'));
+  const mi=parseFloat(m[2].replace(',','.'));
+  const se=parseFloat(m[3].replace(',','.'));
+  let val=Math.abs(g)+mi/60+se/3600;
+  if(g<0 || /[SsOoWw]/.test(s)) val=-val;  // Sur u Oeste = negativo
+  return val;
+}
+
+// Obtiene lat/lon de una fila, en este orden de prioridad:
+// 1) columna "Coordenadas" en formato "lat, lon" decimal
+// 2) columnas Latitud/Longitud (decimal o grados-minutos-segundos)
+function coordsDeFila(r, m){
+  if(m.coords){
+    const partes=String(r[m.coords]||'').split(/[,;]/).map(x=>parseFloat(x.replace(/[^\d.\-]/g,'')));
+    if(partes.length>=2 && !isNaN(partes[0]) && !isNaN(partes[1])) return {lat:partes[0], lon:partes[1]};
+  }
+  return { lat:parseDMS(m.lat?r[m.lat]:''), lon:parseDMS(m.lon?r[m.lon]:'') };
+}
+
 function normGravedad(g, muertos, heridos){
   const n=normHead(g);
   if(n.includes('muert')||n.includes('fatal')) return 'Con Muertos';
@@ -263,11 +294,11 @@ function mostrarError(txt){
 
 function procesar(rows, headers){
   const m = construirMapa(headers);
-  // Columnas mínimas indispensables
-  const faltan = ['lat','lon'].filter(c=>!m[c]);
-  if(faltan.length){
-    mostrarError('No encontré las columnas de coordenadas en la hoja. '+
-      'Revisa que existan columnas de latitud y longitud. Columnas detectadas: '+(headers||[]).join(', '));
+  // Se requiere la columna "Coordenadas" O el par Latitud/Longitud
+  if(!m.coords && !(m.lat && m.lon)){
+    mostrarError('No encontré coordenadas en la hoja. '+
+      'Se necesita una columna "Coordenadas" (formato "lat, lon") o columnas de latitud y longitud. '+
+      'Columnas detectadas: '+(headers||[]).join(', '));
     return;
   }
   const val = (r,campo)=> m[campo]!=null ? r[m[campo]] : '';
@@ -275,14 +306,15 @@ function procesar(rows, headers){
   DATA = rows.map(r=>{
     const muertos=aEntero(val(r,'muertos'));
     const heridos=aEntero(val(r,'heridos'));
+    const c=coordsDeFila(r,m);
     return {
       codrot:String(val(r,'codrot')||'').trim(),
       fecha:String(val(r,'fecha')||'').trim(),
       hora:String(val(r,'hora')||'').trim(),
       direccion:String(val(r,'direccion')||'').trim(),
       clase:String(val(r,'clase')||'').trim(),
-      lat:aNumero(val(r,'lat')),
-      lon:aNumero(val(r,'lon')),
+      lat:c.lat,
+      lon:c.lon,
       muertos, heridos,
       gravedad:normGravedad(val(r,'gravedad'), muertos, heridos)
     };
