@@ -7,6 +7,7 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+<script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f0f0}
@@ -49,7 +50,8 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f0f0}
 .ztitle{font-size:12px;font-weight:600;color:#1a1a2e;flex:1}
 .zbadge{font-size:10px;background:#e5e7eb;color:#555;padding:2px 7px;border-radius:10px}
 .zstats{display:flex;gap:8px;font-size:11px;color:#666}
-
+.msg{font-size:12px;color:#666;padding:10px;background:#f3f4f6;border-radius:8px;border:1px solid #e5e7eb;line-height:1.5}
+.msg.err{color:#b91c1c;background:#fef2f2;border-color:#fecaca}
 #footer{padding:8px 14px;border-top:1px solid #e5e7eb;font-size:10px;color:#888;text-align:center;flex-shrink:0}
 .leaflet-control-attribution{font-size:9px}
 </style>
@@ -64,12 +66,12 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f0f0}
     <div class="stitle">🔍 Filtros</div>
     <div class="fg"><label>Año</label>
       <select id="fa" onchange="filtrar()">
-        <option value="t">Todos los años</option><option value="2025">2025</option><option value="2026">2026</option>
+        <option value="t">Todos los años</option>
       </select>
     </div>
     <div class="fg"><label>Mes</label>
       <select id="fm" onchange="filtrar()">
-        <option value="t">Todos los meses</option><option value="1">Enero</option><option value="2">Febrero</option><option value="3">Marzo</option><option value="5">Mayo</option><option value="9">Septiembre</option>
+        <option value="t">Todos los meses</option>
       </select>
     </div>
     <div class="stitle">⚠ Gravedad</div>
@@ -109,17 +111,43 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f0f0}
     </div>
 
     <div class="stitle">🎯 Zonas críticas identificadas</div>
-    <div id="zonas-list"></div>
+    <div id="zonas-list"><div class="msg">Cargando datos…</div></div>
   </div>
-  <div id="footer">Actualización automática diaria · ROT Aguazul</div>
+  <div id="footer">Datos conectados en vivo desde Google Sheets · ROT Aguazul</div>
 </div>
 <div id="map"></div>
 <script>
-const PUNTOS = [{"lat": 5.16919, "lon": -72.549847, "gravedad": "Con Heridos", "color": "#F4A261", "codrot": "2026-0001", "direccion": "Calle 9 Kra 15", "fecha": "2026-01-03", "hora": "13:52:00", "clase": "Choque", "muertos": 0, "heridos": 1, "anio": 2026, "mes": 1, "cluster": 0, "zona": "Zona crítica 1"}, {"lat": 5.177425, "lon": -72.541289, "gravedad": "Con Heridos", "color": "#F4A261", "codrot": "2026-0002", "direccion": "Kra 18 calle 20", "fecha": "2026-01-08", "hora": "9:28:00", "clase": "Choque", "muertos": 0, "heridos": 0, "anio": 2026, "mes": 1, "cluster": -1, "zona": "Siniestro aislado"}, {"lat": 5.171494, "lon": -72.550692, "gravedad": "Con Heridos", "color": "#F4A261", "codrot": "2026-0003", "direccion": "Kra 18 #10-23", "fecha": "2026-01-14", "hora": "18:47:00", "clase": "Choque", "muertos": 0, "heridos": 2, "anio": 2026, "mes": 1, "cluster": -1, "zona": "Siniestro aislado"}, {"lat": 5.170331, "lon": -72.549653, "gravedad": "Con Heridos", "color": "#F4A261", "codrot": "2026-0004", "direccion": "calle 10 kra 16", "fecha": "2026-01-15", "hora": "3:10:00", "clase": "Choque", "muertos": 0, "heridos": 1, "anio": 2026, "mes": 1, "cluster": -1, "zona": "Siniestro aislado"}, {"lat": 5.173033, "lon": -72.552317, "gravedad": "Con Heridos", "color": "#F4A261", "codrot": "2026-0005", "direccion": "calle 10 kra 21", "fecha": "2026-01-18", "hora": "14:10:00", "clase": "Choque", "muertos": 0, "heridos": 1, "anio": 2026, "mes": 1, "cluster": -1, "zona": "Siniestro aislado"}, {"lat": 5.178142, "lon": -72.551153, "gravedad": "Con Heridos", "color": "#F4A261", "codrot": "2026-0006", "direccion": "calle 15 diag 23", "fecha": "2026-01-21", "hora": "18:22:00", "clase": "Choque", "muertos": 0, "heridos": 2, "anio": 2026, "mes": 1, "cluster": 1, "zona": "Zona crítica 2"}, {"lat": 5.179731, "lon": -72.564114, "gravedad": "Con Muertos", "color": "#E63946", "codrot": "2026-0007", "direccion": "PR 78+200 RUTA 6512", "fecha": "2026-01-25", "hora": "5:25:00", "clase": "Choque", "muertos": 1, "heridos": 1, "anio": 2026, "mes": 1, "cluster": 2, "zona": "Zona crítica 3"}, {"lat": 5.1761, "lon": -72.549156, "gravedad": "Solo Daños", "color": "#2A9D8F", "codrot": "2026-0008", "direccion": "calle 15 kra 21", "fecha": "2026-01-29", "hora": "0:55:00", "clase": "Choque", "muertos": 0, "heridos": 0, "anio": 2026, "mes": 1, "cluster": 3, "zona": "Zona crítica 4"}, {"lat": 5.170394, "lon": -72.548614, "gravedad": "Con Heridos", "color": "#F4A261", "codrot": "2026-0009", "direccion": "calle 11 kra 15", "fecha": "2026-02-01", "hora": "21:10:00", "clase": "Choque", "muertos": 0, "heridos": 1, "anio": 2026, "mes": 2, "cluster": -1, "zona": "Siniestro aislado"}, {"lat": 5.182808, "lon": -72.548058, "gravedad": "Con Heridos", "color": "#F4A261", "codrot": "2026-0010", "direccion": "PR 79+950 RUTA 6512", "fecha": "2026-02-05", "hora": "14:00:00", "clase": "Caida De Vehículo a Precipicio", "muertos": 0, "heridos": 1, "anio": 2026, "mes": 2, "cluster": -1, "zona": "Siniestro aislado"}, {"lat": 5.173036, "lon": -72.542769, "gravedad": "Con Heridos", "color": "#F4A261", "codrot": "2026-0011", "direccion": "kra 12 calle 18", "fecha": "2026-02-08", "hora": "5:12:00", "clase": "Choque", "muertos": 0, "heridos": 1, "anio": 2026, "mes": 2, "cluster": -1, "zona": "Siniestro aislado"}, {"lat": 5.171781, "lon": -72.552319, "gravedad": "Con Heridos", "color": "#F4A261", "codrot": "2026-0012", "direccion": "calle 9 carrera 20", "fecha": "2026-02-17", "hora": "17:45:00", "clase": "Choque", "muertos": 0, "heridos": 1, "anio": 2026, "mes": 2, "cluster": -1, "zona": "Siniestro aislado"}, {"lat": 5.169267, "lon": -72.550814, "gravedad": "Con Heridos", "color": "#F4A261", "codrot": "2026-0013", "direccion": "calle 8 carrera 16", "fecha": "2026-03-01", "hora": "15:13:00", "clase": "Atropello", "muertos": 0, "heridos": 1, "anio": 2026, "mes": 3, "cluster": 0, "zona": "Zona crítica 1"}, {"lat": 5.1, "lon": -72.469767, "gravedad": "Con Heridos", "color": "#F4A261", "codrot": "2026-0014", "direccion": "Km 9 aguazul mani", "fecha": "2026-02-25", "hora": "21:19:00", "clase": "Choque", "muertos": 0, "heridos": 1, "anio": 2026, "mes": 2, "cluster": -1, "zona": "Siniestro aislado"}, {"lat": 5.180556, "lon": -72.569167, "gravedad": "Con Heridos", "color": "#F4A261", "codrot": "2026-0015", "direccion": "km 77+500 ruta 6512", "fecha": "2026-03-06", "hora": "23:15:00", "clase": "Choque", "muertos": 0, "heridos": 1, "anio": 2026, "mes": 3, "cluster": -1, "zona": "Siniestro aislado"}, {"lat": 5.097447, "lon": -72.460847, "gravedad": "Con Heridos", "color": "#F4A261", "codrot": "2026-0016", "direccion": "Km 12 aguazul mani calle 3a", "fecha": "2026-03-09", "hora": "20:17:00", "clase": "Choque", "muertos": 0, "heridos": 1, "anio": 2026, "mes": 3, "cluster": -1, "zona": "Siniestro aislado"}, {"lat": 5.177297, "lon": -72.549097, "gravedad": "Con Heridos", "color": "#F4A261", "codrot": "2026-0017", "direccion": "carrera 22 calle 16", "fecha": "2026-03-17", "hora": "9:30:00", "clase": "Choque", "muertos": 0, "heridos": 1, "anio": 2026, "mes": 3, "cluster": -1, "zona": "Siniestro aislado"}, {"lat": 5.167625, "lon": -72.550486, "gravedad": "Con Muertos", "color": "#E63946", "codrot": "2026-0018", "direccion": "calle 7 carrera 14", "fecha": "2026-03-19", "hora": "3:56:00", "clase": "Choque", "muertos": 1, "heridos": 1, "anio": 2026, "mes": 3, "cluster": 4, "zona": "Zona crítica 5"}, {"lat": 5.165947, "lon": -72.548828, "gravedad": "Con Heridos", "color": "#F4A261", "codrot": "2025-0001", "direccion": "calle 7 con carrera 11", "fecha": "2025-01-09", "hora": "17:56:00", "clase": "Choque", "muertos": 0, "heridos": 2, "anio": 2025, "mes": 1, "cluster": -1, "zona": "Siniestro aislado"}, {"lat": 5.168864, "lon": -72.548222, "gravedad": "Con Heridos", "color": "#F4A261", "codrot": "2025-0002", "direccion": "calle 10 con carrera 13", "fecha": "2025-01-12", "hora": "17:40:00", "clase": "Choque", "muertos": 0, "heridos": 2, "anio": 2025, "mes": 1, "cluster": -1, "zona": "Siniestro aislado"}, {"lat": 5.176506, "lon": -72.5445, "gravedad": "Con Heridos", "color": "#F4A261", "codrot": "2025-0003", "direccion": "carrera 17 con calle 19", "fecha": "2025-01-24", "hora": "8:00:00", "clase": "Atropello", "muertos": 0, "heridos": 1, "anio": 2025, "mes": 1, "cluster": 5, "zona": "Zona crítica 6"}, {"lat": 5.178092, "lon": -72.550983, "gravedad": "Con Heridos", "color": "#F4A261", "codrot": "2025-0004", "direccion": "calle 15 con calle 24", "fecha": "2025-01-26", "hora": "19:00:00", "clase": "Atropello", "muertos": 0, "heridos": 1, "anio": 2025, "mes": 1, "cluster": 1, "zona": "Zona crítica 2"}, {"lat": 5.175556, "lon": -72.549783, "gravedad": "Con Muertos", "color": "#E63946", "codrot": "2025-0005", "direccion": "carrera 21 con calle 14", "fecha": "2025-01-27", "hora": "14:45:00", "clase": "Choque", "muertos": 1, "heridos": 0, "anio": 2025, "mes": 1, "cluster": 3, "zona": "Zona crítica 4"}, {"lat": 5.179769, "lon": -72.563592, "gravedad": "Con Heridos", "color": "#F4A261", "codrot": "2025-0006", "direccion": "km 78 + 100", "fecha": "2025-01-27", "hora": "21:05:00", "clase": "Choque", "muertos": 0, "heridos": 1, "anio": 2025, "mes": 1, "cluster": 2, "zona": "Zona crítica 3"}, {"lat": 5.168131, "lon": -72.550992, "gravedad": "Con Heridos", "color": "#F4A261", "codrot": "2025-0007", "direccion": "calle 7 con carrera 15", "fecha": "2025-01-31", "hora": "19:50:00", "clase": "Choque", "muertos": 0, "heridos": 1, "anio": 2025, "mes": 1, "cluster": 4, "zona": "Zona crítica 5"}, {"lat": 5.169981, "lon": -72.545772, "gravedad": "Con Heridos", "color": "#F4A261", "codrot": "2025-0008", "direccion": "calle 13 con carrera 11", "fecha": "2025-02-12", "hora": "9:50:00", "clase": "Choque", "muertos": 0, "heridos": 2, "anio": 2025, "mes": 2, "cluster": -1, "zona": "Siniestro aislado"}, {"lat": 5.178464, "lon": -72.546811, "gravedad": "Con Heridos", "color": "#F4A261", "codrot": "2025-0009", "direccion": "carrera 21con calle 18a", "fecha": "2025-02-13", "hora": "20:30:00", "clase": "Choque", "muertos": 0, "heridos": 1, "anio": 2025, "mes": 2, "cluster": -1, "zona": "Siniestro aislado"}, {"lat": 5.176506, "lon": -72.5445, "gravedad": "Con Heridos", "color": "#F4A261", "codrot": "2025-0010", "direccion": "carrera 17 con calle 19", "fecha": "2025-02-24", "hora": "10:45:00", "clase": "Choque", "muertos": 0, "heridos": 2, "anio": 2025, "mes": 2, "cluster": 5, "zona": "Zona crítica 6"}, {"lat": 5.174533, "lon": -72.546506, "gravedad": "Con Heridos", "color": "#F4A261", "codrot": "2025-0011", "direccion": "calle 16 con carrera 17", "fecha": "2025-03-02", "hora": "5:30:00", "clase": "Choque", "muertos": 0, "heridos": 2, "anio": 2025, "mes": 3, "cluster": -1, "zona": "Siniestro aislado"}, {"lat": 5.170589, "lon": -72.551197, "gravedad": "Con Heridos", "color": "#F4A261", "codrot": "2025-0012", "direccion": "calle 9 con carrera 18", "fecha": "2025-03-15", "hora": "3:15:00", "clase": "Choque", "muertos": 0, "heridos": 1, "anio": 2025, "mes": 3, "cluster": -1, "zona": "Siniestro aislado"}, {"lat": 5.180936, "lon": -72.553778, "gravedad": "Con Heridos", "color": "#F4A261", "codrot": "2025-0013", "direccion": "pr 79 + 250", "fecha": "2025-05-07", "hora": "22:30:00", "clase": "Choque", "muertos": 0, "heridos": 1, "anio": 2025, "mes": 5, "cluster": -1, "zona": "Siniestro aislado"}, {"lat": 5.167642, "lon": -72.548428, "gravedad": "Con Heridos", "color": "#F4A261", "codrot": "2025-0014", "direccion": "calle 9 con carrera 12", "fecha": "2025-09-08", "hora": "14:00:00", "clase": "Choque", "muertos": 0, "heridos": 1, "anio": 2025, "mes": 9, "cluster": -1, "zona": "Siniestro aislado"}, {"lat": 5.172658, "lon": -72.549536, "gravedad": "Con Muertos", "color": "#E63946", "codrot": "2025-0015", "direccion": "carrera 18 con calle 12", "fecha": "2025-05-05", "hora": "22:45:00", "clase": "Choque", "muertos": 1, "heridos": 0, "anio": 2025, "mes": 5, "cluster": -1, "zona": "Siniestro aislado"}, {"lat": 5.173256, "lon": -72.547747, "gravedad": "Con Heridos", "color": "#F4A261", "codrot": "2025-0016", "direccion": "carrera 17 con calle 14", "fecha": "2025-02-19", "hora": "21:00:00", "clase": "Choque", "muertos": 0, "heridos": 1, "anio": 2025, "mes": 2, "cluster": -1, "zona": "Siniestro aislado"}, {"lat": 5.173969, "lon": -72.542022, "gravedad": "Con Muertos", "color": "#E63946", "codrot": "2025-0017", "direccion": "carrera 12 con calle 19a", "fecha": "2025-03-24", "hora": "16:15:00", "clase": "Choque", "muertos": 1, "heridos": 0, "anio": 2025, "mes": 3, "cluster": -1, "zona": "Siniestro aislado"}];
-const CLUSTERS = [{"id": 0, "lat": 5.1692285, "lon": -72.5503305, "size": 2, "muertos": 0, "heridos": 2, "color": "#FF6B6B"}, {"id": 1, "lat": 5.178117, "lon": -72.551068, "size": 2, "muertos": 0, "heridos": 3, "color": "#4ECDC4"}, {"id": 2, "lat": 5.17975, "lon": -72.563853, "size": 2, "muertos": 1, "heridos": 2, "color": "#45B7D1"}, {"id": 3, "lat": 5.175828, "lon": -72.5494695, "size": 2, "muertos": 1, "heridos": 0, "color": "#96CEB4"}, {"id": 4, "lat": 5.167878, "lon": -72.550739, "size": 2, "muertos": 1, "heridos": 2, "color": "#FFEAA7"}, {"id": 5, "lat": 5.176506, "lon": -72.5445, "size": 2, "muertos": 0, "heridos": 3, "color": "#DDA0DD"}];
-const CLUSTER_COLORS = ["#FF6B6B", "#4ECDC4", "#45B7D1", "#96CEB4", "#FFEAA7", "#DDA0DD", "#98D8C8"];
-const AMENITIES = [];
-const map = L.map('map').setView([5.1696301714285715, -72.54523874285715], 14);
+/* ============================================================
+   CONFIGURACIÓN — lo único editable si algún día hace falta
+   ============================================================ */
+const CONFIG = {
+  // Fuente de datos: Google Sheet publicado como CSV.
+  // Para cambiarla, publica otra hoja (Archivo → Compartir → Publicar en la web → CSV)
+  // y reemplaza esta URL.
+  DATA_URL: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vS4iQ9hd5u1hkC7Uy-jmAEx-QSme-jp7W7bQuQim5rWvxKBqBR-kEuGZnoVD4ief-5c8MdcJsibOn4A/pub?output=csv',
+
+  // Parámetros de agrupación de zonas críticas (DBSCAN)
+  EPS_METROS: 100,     // radio para considerar dos siniestros "vecinos" (agrupación)
+  MIN_PUNTOS: 2,       // mínimo de siniestros para formar una zona
+  BUFFER_METROS: 150,  // radio del círculo visual dibujado alrededor de cada zona
+
+  // Vista inicial del mapa
+  MAP_CENTER: [5.1696, -72.5452],
+  MAP_ZOOM: 14
+};
+
+const COLORES_GRAVEDAD = {
+  'Con Muertos': '#E63946',
+  'Con Heridos': '#F4A261',
+  'Solo Daños':  '#2A9D8F'
+};
+const CLUSTER_COLORS = ["#FF6B6B","#4ECDC4","#45B7D1","#96CEB4","#FFEAA7","#DDA0DD","#98D8C8","#F19066","#786FA6","#63CDDA","#EAB543","#B33771"];
+const MESES = {1:'Enero',2:'Febrero',3:'Marzo',4:'Abril',5:'Mayo',6:'Junio',7:'Julio',8:'Agosto',9:'Septiembre',10:'Octubre',11:'Noviembre',12:'Diciembre'};
+
+/* ============================================================
+   MAPA BASE
+   ============================================================ */
+const map = L.map('map').setView(CONFIG.MAP_CENTER, CONFIG.MAP_ZOOM);
 const bases = {
   'Calles (OpenStreetMap)': L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OSM'}),
   'Satélite (Esri)': L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{attribution:'© Esri'}),
@@ -127,49 +155,208 @@ const bases = {
 };
 bases['Calles (OpenStreetMap)'].addTo(map);
 L.control.layers(bases,{},{position:'topright'}).addTo(map);
+
 let mLyr=L.layerGroup().addTo(map);
 let zLyr=L.layerGroup().addTo(map);
 let bLyr=L.layerGroup().addTo(map);
-let aLyr=L.layerGroup().addTo(map);
 let hLyr=null;
-let showCal=true,showPts=true,showZon=true,showBuf=true,showAmen=true;
+let showCal=true,showPts=true,showZon=true,showBuf=true;
 let gravActivas=new Set(['Con Muertos','Con Heridos','Solo Daños']);
 
-// Build zones list
-const zonasList=document.getElementById('zonas-list');
-CLUSTERS.forEach(c=>{
-  const d=document.createElement('div');
-  d.className='zcard';
-  d.innerHTML=`<div class="zcard-top"><div class="zdot" style="background:${c.color}"></div><span class="ztitle">Zona crítica ${c.id+1}</span><span class="zbadge">${c.size} siniestros</span></div><div class="zstats"><div>🔴 ${c.muertos} fallecidos</div><div>🟠 ${c.heridos} heridos</div></div>`;
-  d.onclick=()=>map.setView([c.lat,c.lon],17);
-  zonasList.appendChild(d);
+let DATA=[];       // todos los siniestros (con campos derivados)
+let CLUSTERS=[];   // zonas críticas calculadas
+
+/* ============================================================
+   UTILIDADES
+   ============================================================ */
+function haversine(a,b){
+  const R=6371000, toRad=x=>x*Math.PI/180;
+  const dLat=toRad(b.lat-a.lat), dLon=toRad(b.lon-a.lon);
+  const la1=toRad(a.lat), la2=toRad(b.lat);
+  const h=Math.sin(dLat/2)**2 + Math.cos(la1)*Math.cos(la2)*Math.sin(dLon/2)**2;
+  return 2*R*Math.asin(Math.sqrt(h));
+}
+function oscurecer(hex, f=0.6){
+  const n=parseInt(hex.slice(1),16);
+  let r=Math.round(((n>>16)&255)*f), g=Math.round(((n>>8)&255)*f), b=Math.round((n&255)*f);
+  return '#'+((1<<24)+(r<<16)+(g<<8)+b).toString(16).slice(1);
+}
+
+/* DBSCAN sobre coordenadas geográficas (distancia en metros) */
+function dbscan(points, eps, minPts){
+  const n=points.length;
+  const labels=new Array(n).fill(undefined); // undefined=sin visitar, -1=ruido
+  const region=i=>{const nb=[];for(let j=0;j<n;j++)if(haversine(points[i],points[j])<=eps)nb.push(j);return nb;};
+  let cid=-1;
+  for(let i=0;i<n;i++){
+    if(labels[i]!==undefined) continue;
+    let nb=region(i);
+    if(nb.length<minPts){ labels[i]=-1; continue; }
+    cid++; labels[i]=cid;
+    const cola=nb.slice();
+    for(let k=0;k<cola.length;k++){
+      const j=cola[k];
+      if(labels[j]===-1) labels[j]=cid;
+      if(labels[j]!==undefined) continue;
+      labels[j]=cid;
+      const nb2=region(j);
+      if(nb2.length>=minPts) for(const m of nb2) if(!cola.includes(m)) cola.push(m);
+    }
+  }
+  return labels;
+}
+
+/* ============================================================
+   CARGA DE DATOS
+   ============================================================ */
+// Reconoce las columnas de tu hoja por coincidencia parcial (tolerante a
+// mayúsculas, tildes, espacios y guiones bajos). Adaptado a: IPAT, FechaHecho,
+// HoraHecho, Direccion, Gravedad, ClaseAccidente, Latitud, Longitud,
+// Cant_Muertos, Cantidad_Heridos. Si cambias nombres, ajusta los tokens abajo.
+function normHead(s){
+  return (s||'').toString().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]/g,'');
+}
+function construirMapa(headers){
+  const m={}, usados=new Set();
+  const H=(headers||[]).map(h=>({raw:h, n:normHead(h)}));
+  const pick=cond=>{ const f=H.find(h=>!usados.has(h.raw)&&cond(h.n)); if(f){usados.add(f.raw);return f.raw;} return null; };
+  const inc=arr=>n=>arr.some(t=>n.includes(t));
+  const eq =arr=>n=>arr.some(t=>n===t);
+
+  m.lat      = pick(inc(['latitud','coordy'])) || pick(eq(['lat','y']));
+  m.lon      = pick(inc(['longitud','coordx'])) || pick(eq(['lon','lng','long','x']));
+  m.fecha    = pick(inc(['fecha']));
+  m.hora     = pick(inc(['hora']));
+  m.gravedad = pick(inc(['graved','severidad']));
+  m.muertos  = pick(inc(['muert','fallecid','victimasfatal']));
+  m.heridos  = pick(inc(['herid','lesionad']));
+  m.clase    = pick(n=>n.includes('claseaccidente')) || pick(n=>n.includes('clase')&&!n.includes('choque')&&!n.includes('objeto'));
+  m.direccion= pick(inc(['direccion','direc','ubicacion','lugar']));
+  m.codrot   = pick(inc(['codrot','codigorot'])) || pick(inc(['ipat','noticiacriminal','consecutivo']));
+
+  Object.keys(m).forEach(k=>{ if(!m[k]) delete m[k]; });
+  return m;
+}
+function aNumero(v){ return parseFloat(String(v==null?'':v).replace(',','.').trim()); }
+function aEntero(v){ return parseInt(String(v==null?'':v).replace(/[^\d-]/g,''),10)||0; }
+function normGravedad(g, muertos, heridos){
+  const n=normHead(g);
+  if(n.includes('muert')||n.includes('fatal')) return 'Con Muertos';
+  if(n.includes('herid')||n.includes('lesion')) return 'Con Heridos';
+  if(n.includes('dano')||n.includes('material')) return 'Solo Daños';
+  // Sin columna de gravedad reconocible: se deduce de los conteos.
+  if(muertos>0) return 'Con Muertos';
+  if(heridos>0) return 'Con Heridos';
+  return 'Solo Daños';
+}
+
+Papa.parse(CONFIG.DATA_URL, {
+  download:true, header:true, skipEmptyLines:true,
+  complete: res => { try { procesar(res.data, res.meta && res.meta.fields); } catch(e){ mostrarError(e.message); } },
+  error: err => mostrarError(err.message || 'No se pudo leer la fuente de datos')
 });
 
-// Draw amenities
-function dibujarAmenities(){
-  aLyr.clearLayers();
-  if(!showAmen) return;
-  AMENITIES.forEach(a=>{
-    const icon = L.divIcon({
-      html:`<div style="background:${a.color};color:white;border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:14px;border:2px solid white;box-shadow:0 2px 4px rgba(0,0,0,0.3)">${a.icon}</div>`,
-      iconSize:[28,28], iconAnchor:[14,14], className:''
-    });
-    const m = L.marker([a.lat,a.lon],{icon});
-    m.bindPopup(`
-      <div style="font-family:'Segoe UI';font-size:13px;min-width:180px">
-        <div style="background:${a.color};color:white;padding:8px 12px;margin:-1px -1px 8px;border-radius:4px 4px 0 0">
-          <b>${a.icon} ${a.label}</b>
-        </div>
-        <div style="padding:0 4px 4px">
-          <b>${a.name}</b><br>
-          <a href="https://www.google.com/maps?q=${a.lat},${a.lon}" target="_blank" style="color:#1a73e8;font-size:12px">📍 Ver en Google Maps</a>
-        </div>
-      </div>`,{maxWidth:240});
-    m.bindTooltip(`${a.icon} ${a.name}`,{sticky:true});
-    m.addTo(aLyr);
+function mostrarError(txt){
+  document.getElementById('zonas-list').innerHTML =
+    `<div class="msg err"><b>Error al cargar los datos.</b><br>${txt}<br><br>Verifica que <code>${CONFIG.DATA_URL}</code> exista y esté accesible.</div>`;
+}
+
+function procesar(rows, headers){
+  const m = construirMapa(headers);
+  // Columnas mínimas indispensables
+  const faltan = ['lat','lon'].filter(c=>!m[c]);
+  if(faltan.length){
+    mostrarError('No encontré las columnas de coordenadas en la hoja. '+
+      'Revisa que existan columnas de latitud y longitud. Columnas detectadas: '+(headers||[]).join(', '));
+    return;
+  }
+  const val = (r,campo)=> m[campo]!=null ? r[m[campo]] : '';
+
+  DATA = rows.map(r=>{
+    const muertos=aEntero(val(r,'muertos'));
+    const heridos=aEntero(val(r,'heridos'));
+    return {
+      codrot:String(val(r,'codrot')||'').trim(),
+      fecha:String(val(r,'fecha')||'').trim(),
+      hora:String(val(r,'hora')||'').trim(),
+      direccion:String(val(r,'direccion')||'').trim(),
+      clase:String(val(r,'clase')||'').trim(),
+      lat:aNumero(val(r,'lat')),
+      lon:aNumero(val(r,'lon')),
+      muertos, heridos,
+      gravedad:normGravedad(val(r,'gravedad'), muertos, heridos)
+    };
+  }).filter(p=>!isNaN(p.lat)&&!isNaN(p.lon)&&p.lat!==0&&p.lon!==0);
+
+  if(!DATA.length){ mostrarError('La hoja se leyó pero no hay filas con coordenadas válidas.'); return; }
+
+  // Campos derivados
+  DATA.forEach(p=>{
+    p.color = COLORES_GRAVEDAD[p.gravedad];
+    const partes=(p.fecha||'').split(/[-\/]/);
+    // admite AAAA-MM-DD o DD/MM/AAAA
+    if(partes[0] && partes[0].length===4){ p.anio=parseInt(partes[0]); p.mes=parseInt(partes[1]); }
+    else { p.anio=parseInt(partes[2]); p.mes=parseInt(partes[1]); }
+  });
+
+  // Zonas críticas (automáticas)
+  const labels = dbscan(DATA, CONFIG.EPS_METROS, CONFIG.MIN_PUNTOS);
+  DATA.forEach((p,i)=>{
+    p.cluster=labels[i];
+    p.zona = labels[i]>=0 ? `Zona crítica ${labels[i]+1}` : 'Siniestro aislado';
+  });
+  CLUSTERS = construirClusters(DATA);
+
+  poblarFiltros(DATA);
+  construirListaZonas();
+  filtrar();
+}
+
+function construirClusters(data){
+  const grupos={};
+  data.forEach(p=>{ if(p.cluster>=0){ (grupos[p.cluster]=grupos[p.cluster]||[]).push(p); } });
+  return Object.keys(grupos).map(id=>{
+    const pts=grupos[id], k=parseInt(id);
+    return {
+      id:k,
+      lat:pts.reduce((s,p)=>s+p.lat,0)/pts.length,
+      lon:pts.reduce((s,p)=>s+p.lon,0)/pts.length,
+      size:pts.length,
+      muertos:pts.reduce((s,p)=>s+p.muertos,0),
+      heridos:pts.reduce((s,p)=>s+p.heridos,0),
+      color:CLUSTER_COLORS[k % CLUSTER_COLORS.length]
+    };
+  }).sort((a,b)=>a.id-b.id);
+}
+
+/* ============================================================
+   FILTROS DINÁMICOS
+   ============================================================ */
+function poblarFiltros(data){
+  const anios=[...new Set(data.map(p=>p.anio))].filter(Boolean).sort((a,b)=>a-b);
+  const meses=[...new Set(data.map(p=>p.mes))].filter(Boolean).sort((a,b)=>a-b);
+  document.getElementById('fa').innerHTML =
+    '<option value="t">Todos los años</option>' + anios.map(a=>`<option value="${a}">${a}</option>`).join('');
+  document.getElementById('fm').innerHTML =
+    '<option value="t">Todos los meses</option>' + meses.map(m=>`<option value="${m}">${MESES[m]||m}</option>`).join('');
+}
+
+function construirListaZonas(){
+  const cont=document.getElementById('zonas-list');
+  cont.innerHTML='';
+  if(!CLUSTERS.length){ cont.innerHTML='<div class="msg">No se identificaron zonas críticas con los parámetros actuales.</div>'; return; }
+  CLUSTERS.forEach(c=>{
+    const d=document.createElement('div');
+    d.className='zcard';
+    d.innerHTML=`<div class="zcard-top"><div class="zdot" style="background:${c.color}"></div><span class="ztitle">Zona crítica ${c.id+1}</span><span class="zbadge">${c.size} siniestros</span></div><div class="zstats"><div>🔴 ${c.muertos} fallecidos</div><div>🟠 ${c.heridos} heridos</div></div>`;
+    d.onclick=()=>map.setView([c.lat,c.lon],17);
+    cont.appendChild(d);
   });
 }
 
+/* ============================================================
+   DIBUJO
+   ============================================================ */
 function crearHeat(datos){
   if(hLyr)map.removeLayer(hLyr);
   if(!datos.length)return;
@@ -183,11 +370,11 @@ function dibujarZonas(datos){
     const pf=datos.filter(p=>p.cluster===c.id);
     if(!pf.length)return;
     const zm=L.circleMarker([c.lat,c.lon],{radius:10+c.size*2,color:c.color,weight:4,fill:true,fillColor:c.color,fillOpacity:0.25});
-    zm.bindPopup(`<div style="font-family:'Segoe UI';font-size:13px;min-width:220px"><div style="background:${c.color};color:white;padding:8px 12px;margin:-1px -1px 8px;border-radius:4px 4px 0 0"><b>🎯 Zona crítica ${c.id+1}</b></div><b>Siniestros:</b> ${c.size}<br><b>Fallecidos:</b> ${c.muertos}<br><b>Heridos:</b> ${c.heridos}<br><b>Radio:</b> ~100 metros</div>`,{maxWidth:260});
+    zm.bindPopup(`<div style="font-family:'Segoe UI';font-size:13px;min-width:220px"><div style="background:${c.color};color:white;padding:8px 12px;margin:-1px -1px 8px;border-radius:4px 4px 0 0"><b>🎯 Zona crítica ${c.id+1}</b></div><b>Siniestros:</b> ${c.size}<br><b>Fallecidos:</b> ${c.muertos}<br><b>Heridos:</b> ${c.heridos}<br><b>Radio:</b> ~${CONFIG.EPS_METROS} metros</div>`,{maxWidth:260});
     if(showZon)zm.addTo(zLyr);
-    const darkColor = c.color.replace('#FF6B6B','#CC0000').replace('#4ECDC4','#007A73').replace('#45B7D1','#005F8A').replace('#96CEB4','#2D6A4F').replace('#FFEAA7','#B8860B').replace('#DDA0DD','#7B2D8B').replace('#98D8C8','#1A6B5A');
-    const buf=L.circle([c.lat,c.lon],{radius:150,color:darkColor,weight:3,fill:true,fillColor:darkColor,fillOpacity:0.15,dashArray:'8,5'});
-    buf.bindTooltip(`Zona crítica ${c.id+1} · Radio 150m`,{sticky:true});
+    const oscuro=oscurecer(c.color,0.6);
+    const buf=L.circle([c.lat,c.lon],{radius:CONFIG.BUFFER_METROS,color:oscuro,weight:3,fill:true,fillColor:oscuro,fillOpacity:0.15,dashArray:'8,5'});
+    buf.bindTooltip(`Zona crítica ${c.id+1} · Radio ${CONFIG.BUFFER_METROS}m`,{sticky:true});
     if(showBuf)buf.addTo(bLyr);
   });
 }
@@ -195,7 +382,7 @@ function dibujarZonas(datos){
 function filtrar(){
   const anio=document.getElementById('fa').value;
   const mes=document.getElementById('fm').value;
-  const fil=PUNTOS.filter(p=>(anio==='t'||p.anio==anio)&&(mes==='t'||p.mes==mes)&&gravActivas.has(p.gravedad));
+  const fil=DATA.filter(p=>(anio==='t'||p.anio==anio)&&(mes==='t'||p.mes==mes)&&gravActivas.has(p.gravedad));
   mLyr.clearLayers();
   fil.forEach(p=>{
     const c=L.circleMarker([p.lat,p.lon],{radius:p.cluster>=0?4:3,color:'white',weight:1.5,fillColor:p.color,fillOpacity:0.9});
@@ -205,7 +392,6 @@ function filtrar(){
   });
   crearHeat(fil);
   dibujarZonas(fil);
-  dibujarAmenities();
   const sM=fil.filter(p=>p.gravedad==='Con Muertos').length;
   const sH=fil.filter(p=>p.gravedad==='Con Heridos').length;
   const sD=fil.filter(p=>p.gravedad==='Solo Daños').length;
@@ -223,13 +409,14 @@ function filtrar(){
   document.getElementById('cD').textContent=sD;
 }
 
+/* ============================================================
+   CONTROLES
+   ============================================================ */
 function tg(g){const ids={'Con Muertos':'gM','Con Heridos':'gH','Solo Daños':'gD'};const el=document.getElementById(ids[g]);if(gravActivas.has(g)){gravActivas.delete(g);el.classList.add('off');}else{gravActivas.add(g);el.classList.remove('off');}filtrar();}
 function tCal(){showCal=!showCal;const b=document.getElementById('bC');if(showCal){if(hLyr)hLyr.addTo(map);b.classList.add('on');}else{if(hLyr)map.removeLayer(hLyr);b.classList.remove('on');}}
 function tPts(){showPts=!showPts;const b=document.getElementById('bP');if(showPts){mLyr.addTo(map);b.classList.add('on');}else{map.removeLayer(mLyr);b.classList.remove('on');}}
 function tZon(){showZon=!showZon;const b=document.getElementById('bZ');if(showZon){zLyr.addTo(map);b.classList.add('on');}else{map.removeLayer(zLyr);b.classList.remove('on');}}
 function tBuf(){showBuf=!showBuf;const b=document.getElementById('bB');if(showBuf){bLyr.addTo(map);b.classList.add('on');}else{map.removeLayer(bLyr);b.classList.remove('on');}}
-function tAmen(){showAmen=!showAmen;const b=document.getElementById('bA');if(showAmen){aLyr.addTo(map);b.classList.add('on');}else{map.removeLayer(aLyr);b.classList.remove('on');}dibujarAmenities();}
-filtrar();
 </script>
 </body>
 </html>
