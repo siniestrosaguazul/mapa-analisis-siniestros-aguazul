@@ -1,34 +1,37 @@
-name: Actualizar Mapa de Siniestros
+name: Desplegar mapa a Pages
 
 on:
-  schedule:
-    - cron: '0 6 * * *'
-  workflow_dispatch:
+  push:
+    branches: [main]
+  workflow_dispatch:        # botón "Run workflow" para despliegue manual
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
 
 jobs:
-  build:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     steps:
-      - name: Clonar repositorio
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Instalar Python
-        uses: actions/setup-python@v5
+      - name: Configurar Pages
+        uses: actions/configure-pages@v5
+
+      - name: Subir artefacto
+        uses: actions/upload-pages-artifact@v3
         with:
-          python-version: '3.11'
+          path: 'docs'
 
-      - name: Instalar dependencias
-        run: pip install pandas folium scikit-learn numpy osmnx
-
-      - name: Generar mapa
-        run: python generar_mapa.py
-
-      - name: Publicar cambios
-        run: |
-          git config --global user.name "GitHub Actions"
-          git config --global user.email "actions@github.com"
-          git add docs/index.html
-          git diff --staged --quiet || git commit -m "Mapa actualizado automaticamente"
-          git push
+      - name: Desplegar a Pages
+        id: deployment
+        uses: actions/deploy-pages@v5
