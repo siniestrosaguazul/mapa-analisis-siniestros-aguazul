@@ -498,7 +498,7 @@
 const CSV_URL  = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vS4iQ9hd5u1hkC7Uy-jmAEx-QSme-jp7W7bQuQim5rWvxKBqBR-kEuGZnoVD4ief-5c8MdcJsibOn4A/pub?output=csv';
 const CENTRO   = [5.1715, -72.5536];   /* Aguazul, Casanare */
 const ZOOM_0   = 13;
-const EPS_KM   = 0.15;
+const EPS_KM   = 0.08;   /* 80 m — radio de intersección puntual */
 const MIN_PTS  = 2;
 const PTS_M    = 12;
 const PTS_H    = 2;
@@ -713,7 +713,7 @@ function buildMarkers(data){
 /* ── ZONAS CRÍTICAS ── */
 function buildZonas(data){
   if(zonasGroup){map.removeLayer(zonasGroup);zonasGroup=null;}
-  const pts=data.filter(d=>d.score>0);
+  const pts=data;                          // TODOS los puntos, no solo score>0
   if(pts.length<2){updateZonasUI([]);return;}
 
   const labels=dbscan(pts,EPS_KM,MIN_PTS);
@@ -731,10 +731,10 @@ function buildZonas(data){
     const cLat=members.reduce((a,d)=>a+d.lat,0)/members.length;
     const cLon=members.reduce((a,d)=>a+d.lon,0)/members.length;
 
-    // Radio dinámico: encierra todos los puntos del clúster + 40 m de margen
+    // Radio dinámico: encierra todos los puntos del clúster + 30 m de margen
     const radioM = Math.max(
-      80,
-      Math.max(...members.map(d => hav(cLat,cLon,d.lat,d.lon)*1000)) + 40
+      60,
+      Math.max(...members.map(d => hav(cLat,cLon,d.lat,d.lon)*1000)) + 30
     );
 
     criticas.push({cLat,cLon,ts,tm,th,n:members.length,radioM});
