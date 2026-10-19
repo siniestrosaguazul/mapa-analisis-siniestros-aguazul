@@ -552,12 +552,19 @@ function splitLine(l) {
 
 /* ── PARSE REGISTRO ── */
 function parseReg(row) {
-  let lat = toF(row['Latitude']||row['Latitud']||row['latitud']||row['LAT']||'');
-  let lon = toF(row['Longitude']||row['Longitud']||row['longitud']||row['LON']||'');
-  if((!lat||!lon) && row['Coordenadas']){
-    const p=row['Coordenadas'].split(',');
-    if(p.length===2){lat=toF(p[0]);lon=toF(p[1]);}
+  let lat = null, lon = null;
+
+  // Primero intentar columna combinada "Coordenadas" (formato "5.169194, -72.549847")
+  if(row['Coordenadas'] && row['Coordenadas'].trim() !== '') {
+    const p = row['Coordenadas'].split(',');
+    if(p.length === 2) { lat = toF(p[0]); lon = toF(p[1]); }
   }
+  // Fallback: columnas separadas
+  if(!lat || !lon) {
+    lat = toF(row['Latitude']||row['Latitud']||row['latitud']||row['LAT']||'');
+    lon = toF(row['Longitude']||row['Longitud']||row['longitud']||row['LON']||'');
+  }
+
   if(!lat||!lon||isNaN(lat)||isNaN(lon)) return null;
   /* Validación geográfica Casanare / Aguazul */
   if(lat<4.5||lat>7.0||lon<-73.5||lon>-70.5) return null;
