@@ -329,6 +329,23 @@
     .badge-herido { background: #fef3e2; color: #9a4e06; border: 1px solid #f5c97a; }
     .badge-danos  { background: #e6f4ee; color: #005a30; border: 1px solid #9dd3b6; }
 
+    /* Checkboxes de gravedad */
+    .grav-checks { display: flex; flex-direction: column; gap: 5px; }
+    .grav-item {
+      display: flex; align-items: center; gap: 7px;
+      font-size: 0.73rem; color: var(--fg-muted);
+      cursor: pointer; padding: 5px 7px;
+      border: 1px solid var(--border); border-radius: 6px;
+      background: var(--surface2);
+      transition: border-color .12s, background .12s;
+      user-select: none;
+    }
+    .grav-item:hover { border-color: var(--azul); }
+    .grav-item input[type=checkbox] { accent-color: var(--azul); cursor: pointer; width: 14px; height: 14px; flex-shrink: 0; }
+    .grav-item input[type=checkbox]:checked + .grav-dot + * { color: var(--fg); font-weight: 500; }
+    .grav-item:has(input:checked) { background: #EEF3FB; border-color: var(--azul); color: var(--fg); font-weight: 500; }
+    .grav-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+
     /* ══ RESPONSIVE ══ */
     @media (max-width: 680px) {
       .layout { flex-direction: column; }
@@ -420,23 +437,26 @@
         <option value="">Todos los años</option>
       </select>
 
-      <label class="flt-label">Municipio</label>
-      <select id="fMun" onchange="applyFilters()">
-        <option value="">Todos</option>
-      </select>
-
       <label class="flt-label">Clase de accidente</label>
       <select id="fClase" onchange="applyFilters()">
         <option value="">Todas</option>
       </select>
 
-      <label class="flt-label">Gravedad</label>
-      <select id="fGravedad" onchange="applyFilters()">
-        <option value="">Todas</option>
-        <option value="fatal">Con muertos</option>
-        <option value="heridos">Con heridos</option>
-        <option value="danos">Solo daños</option>
-      </select>
+      <label class="flt-label" style="margin-bottom:6px">Gravedad <span style="font-size:.6rem;color:var(--fg-dim)">(selección múltiple)</span></label>
+      <div class="grav-checks">
+        <label class="grav-item">
+          <input type="checkbox" value="fatal"   onchange="applyFilters()" />
+          <span class="grav-dot" style="background:#C8102E"></span>Con muertos
+        </label>
+        <label class="grav-item">
+          <input type="checkbox" value="heridos" onchange="applyFilters()" />
+          <span class="grav-dot" style="background:#D4700A"></span>Con heridos
+        </label>
+        <label class="grav-item">
+          <input type="checkbox" value="danos"   onchange="applyFilters()" />
+          <span class="grav-dot" style="background:#006B3C"></span>Solo daños
+        </label>
+      </div>
     </div>
 
     <!-- Leyenda -->
@@ -792,21 +812,28 @@ function populateSelect(id,vals){
 }
 function populateFilters(){
   populateSelect('fAno',  [...new Set(allData.map(d=>d.ano).filter(Boolean))]);
-  populateSelect('fMun',  [...new Set(allData.map(d=>d.municipio).filter(Boolean))]);
   populateSelect('fClase',[...new Set(allData.map(d=>d.clase).filter(Boolean))]);
 }
+function getGravChecked(){
+  return [...document.querySelectorAll('.grav-checks input[type=checkbox]:checked')].map(c=>c.value);
+}
 function applyFilters(){
-  const ano=document.getElementById('fAno').value;
-  const mun=document.getElementById('fMun').value;
-  const cls=document.getElementById('fClase').value;
-  const grav=document.getElementById('fGravedad').value;
-  filteredData=allData.filter(d=>{
-    if(ano&&d.ano!==ano) return false;
-    if(mun&&d.municipio!==mun) return false;
-    if(cls&&d.clase!==cls) return false;
-    if(grav==='fatal'  &&d.muertos===0) return false;
-    if(grav==='heridos'&&(d.muertos>0||d.heridos===0)) return false;
-    if(grav==='danos'  &&(d.muertos>0||d.heridos>0))   return false;
+  const ano  = document.getElementById('fAno').value;
+  const cls  = document.getElementById('fClase').value;
+  const gravs = getGravChecked();   // array vacío = todas
+
+  filteredData = allData.filter(d => {
+    if(ano && d.ano !== ano) return false;
+    if(cls && d.clase !== cls) return false;
+    if(gravs.length > 0){
+      const esFatal  = d.muertos > 0;
+      const esHerido = !esFatal && d.heridos > 0;
+      const esDanos  = !esFatal && !esHerido;
+      const ok = (gravs.includes('fatal')   && esFatal)
+              || (gravs.includes('heridos') && esHerido)
+              || (gravs.includes('danos')   && esDanos);
+      if(!ok) return false;
+    }
     return true;
   });
   refresh();
