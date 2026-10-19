@@ -554,13 +554,17 @@ function splitLine(l) {
 function parseReg(row) {
   let lat = null, lon = null;
 
-  // Primero intentar columna combinada "Coordenadas" (formato "5.169194, -72.549847")
-  if(row['Coordenadas'] && row['Coordenadas'].trim() !== '') {
-    const p = row['Coordenadas'].split(',');
-    if(p.length === 2) { lat = toF(p[0]); lon = toF(p[1]); }
+  // Columna combinada "Coordenadas" (formato "5.169194, -72.549847")
+  const coord = row['Coordenadas'] || row['coordenadas'] || '';
+  if(coord.trim() !== '') {
+    const p = coord.split(',');
+    if(p.length === 2) {
+      lat = toF(p[0].trim());
+      lon = toF(p[1].trim());
+    }
   }
   // Fallback: columnas separadas
-  if(!lat || !lon) {
+  if(!lat || !lon || isNaN(lat) || isNaN(lon)) {
     lat = toF(row['Latitude']||row['Latitud']||row['latitud']||row['LAT']||'');
     lon = toF(row['Longitude']||row['Longitud']||row['longitud']||row['LON']||'');
   }
@@ -569,10 +573,11 @@ function parseReg(row) {
   /* Validación geográfica Casanare / Aguazul */
   if(lat<4.5||lat>7.0||lon<-73.5||lon>-70.5) return null;
 
-  const muertos = toI(row['Cant_Muertos']||row['Fallecidos']||row['muertos']||'0');
-  const heridos  = toI(row['Cantidad_Heridos']||row['Heridos']||row['heridos']||'0');
+  // Nombres de columna exactos de la hoja de Aguazul
+  const muertos = toI(row['Cant_Muertos']||row['Cant_Muert']||row['Fallecidos']||'0');
+  const heridos  = toI(row['Cantidad_Heridos']||row['Cantidad_Heric']||row['Heridos']||'0');
   const score    = muertos*PTS_M + heridos*PTS_H;
-  const fecha    = row['FechaHecho']||row['Fecha']||'';
+  const fecha    = row['FechaHecho']||row['FechaHec']||row['Fecha']||'';
   const anoM     = fecha.match(/(\d{4})/);
 
   return {
@@ -581,7 +586,7 @@ function parseReg(row) {
     clase    : row['ClaseAcc']||row['Clase']||'',
     gravedad : row['Gravedad']||'',
     municipio: row['Municipio']||row['municipio']||'',
-    hora     : row['HoraHecho']||row['Hora']||'',
+    hora     : row['HoraHecho']||row['HoraHech']||row['Hora']||'',
   };
 }
 const toF = v => v===''||v==null ? null : parseFloat(String(v).replace(',','.'));
