@@ -1,912 +1,1674 @@
 <!DOCTYPE html>
+
 <html lang="es">
+
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <title>Mapa de Siniestros Viales · Aguazul</title>
 
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.css" />
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.Default.css" />
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Inter:wght@400;500;600&display=swap" />
+<meta charset="UTF-8" />
 
-  <style>
-    /* ══════════════════════════════════════════
-       TOKENS — fondo blanco / colores Casanare
-       ══════════════════════════════════════════ */
-    :root {
-      --verde:    #006B3C;   /* verde bandera Casanare */
-      --azul:     #003087;   /* azul bandera Casanare  */
-      --rojo:     #C8102E;   /* accidentes fatales      */
-      --warning:  #D4700A;
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 
-      /* Superficies claras */
-      --bg:       #F5F6F7;
-      --panel:    #FFFFFF;
-      --surface2: #F0F2F4;
-      --border:   #DDE1E6;
+<title>Mapa de Siniestros Viales · Aguazul</title>
 
-      /* Texto */
-      --fg:       #1A2028;
-      --fg-muted: #5A6475;
-      --fg-dim:   #9AA3B0;
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
 
-      --shadow:   0 1px 6px rgba(0,0,0,.10);
-      --shadow-md:0 2px 14px rgba(0,0,0,.13);
-    }
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.css" />
 
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.Default.css" />
 
-    html, body {
-      height: 100%;
-      font-family: 'Inter', system-ui, sans-serif;
-      font-size: 14px;
-      background: var(--bg);
-      color: var(--fg);
-      overflow: hidden;
-    }
+<link rel="preconnect" href="https://fonts.googleapis.com" />
 
-    /* ══ HEADER ══ */
-    header {
-      position: relative;
-      background: var(--azul);
-      height: 52px;
-      display: flex;
-      align-items: center;
-      padding: 0 18px;
-      flex-shrink: 0;
-      z-index: 500;
-      box-shadow: 0 2px 8px rgba(0,48,135,.3);
-    }
-    header::after {
-      content: '';
-      position: absolute;
-      bottom: 0; left: 0; right: 0;
-      height: 4px;
-      background: var(--verde);
-    }
-    header h1 {
-      font-family: 'Barlow Condensed', sans-serif;
-      font-size: 1.15rem;
-      font-weight: 700;
-      color: #fff;
-      letter-spacing: 0.04em;
-      line-height: 1;
-    }
-    header p {
-      font-size: 0.67rem;
-      color: rgba(255,255,255,.72);
-      margin-top: 2px;
-    }
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Inter:wght@400;500;600&display=swap" />
 
-    /* ══ LAYOUT ══ */
-    .layout {
-      display: flex;
-      height: calc(100% - 52px - 26px);
-    }
+<style>
 
-    /* ══ SIDEBAR ══ */
-    #sidebar {
-      width: 282px;
-      flex-shrink: 0;
-      background: var(--panel);
-      border-right: 1px solid var(--border);
-      display: flex;
-      flex-direction: column;
-      overflow-y: auto;
-      overflow-x: hidden;
-    }
-    #sidebar::-webkit-scrollbar { width: 4px; }
-    #sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+/* ══════════════════════════════════════════
 
-    .sec {
-      padding: 11px 13px;
-      border-bottom: 1px solid var(--border);
-    }
-    .sec-title {
-      font-family: 'Barlow Condensed', sans-serif;
-      font-size: 0.72rem;
-      font-weight: 700;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      color: var(--fg-dim);
-      margin-bottom: 9px;
-    }
+TOKENS — fondo blanco / colores Casanare
 
-    /* KPI grid */
-    .kpi-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
-    .kpi {
-      background: var(--surface2);
-      border: 1px solid var(--border);
-      border-radius: 7px;
-      padding: 9px 8px;
-      text-align: center;
-    }
-    .kpi .num {
-      font-family: 'Barlow Condensed', sans-serif;
-      font-size: 1.7rem;
-      font-weight: 700;
-      line-height: 1;
-      color: var(--fg);
-      font-variant-numeric: tabular-nums;
-    }
-    .kpi .lbl { font-size: 0.6rem; color: var(--fg-muted); margin-top: 3px; text-transform: uppercase; letter-spacing: .05em; }
-    .kpi.c-rojo  .num { color: var(--rojo); }
-    .kpi.c-warn  .num { color: var(--warning); }
-    .kpi.c-verde .num { color: var(--verde); }
+══════════════════════════════════════════ */
 
-    /* Botones capa */
-    .layer-btn {
-      width: 100%;
-      background: var(--surface2);
-      border: 1px solid var(--border);
-      color: var(--fg-muted);
-      border-radius: 6px;
-      padding: 7px 10px;
-      margin-bottom: 5px;
-      cursor: pointer;
-      font-size: 0.75rem;
-      font-family: 'Inter', sans-serif;
-      text-align: left;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      transition: all .15s;
-    }
-    .layer-btn:last-child { margin-bottom: 0; }
-    .layer-btn.on { background: #EEF3FB; border-color: var(--azul); color: var(--fg); }
-    .layer-btn:hover { border-color: var(--azul); }
-    .layer-btn .dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
-    .layer-btn .check { margin-left: auto; font-size: 0.7rem; opacity: 0; color: var(--azul); }
-    .layer-btn.on .check { opacity: 1; }
+:root {
 
-    /* Slider */
-    .slider-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: baseline;
-      margin-bottom: 8px;
-    }
-    .slider-header .val {
-      font-family: 'Barlow Condensed', sans-serif;
-      font-size: 1.4rem;
-      font-weight: 700;
-      color: var(--warning);
-      line-height: 1;
-    }
-    input[type=range] {
-      width: 100%;
-      accent-color: var(--azul);
-      cursor: pointer;
-    }
-    .slider-legend {
-      display: flex;
-      gap: 12px;
-      margin-top: 7px;
-    }
-    .sl-item {
-      display: flex;
-      align-items: center;
-      gap: 4px;
-      font-size: 0.67rem;
-      color: var(--fg-muted);
-    }
-    .sl-item strong { color: var(--fg); }
+--verde:    #006B3C;   /* verde bandera Casanare */
 
-    /* Filtros */
-    .flt-label {
-      font-size: 0.67rem;
-      color: var(--fg-dim);
-      text-transform: uppercase;
-      letter-spacing: .05em;
-      margin-bottom: 3px;
-      display: block;
-    }
-    select {
-      width: 100%;
-      background: var(--surface2);
-      border: 1px solid var(--border);
-      color: var(--fg);
-      border-radius: 6px;
-      padding: 6px 8px;
-      font-size: 0.75rem;
-      font-family: 'Inter', sans-serif;
-      margin-bottom: 7px;
-      outline: none;
-      cursor: pointer;
-    }
-    select:focus { border-color: var(--azul); }
+--azul:     #003087;   /* azul bandera Casanare  */
 
-    /* Leyenda */
-    .leg-item {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 0.71rem;
-      color: var(--fg-muted);
-      margin-bottom: 5px;
-    }
-    .leg-dot  { width: 11px; height: 11px; border-radius: 50%; flex-shrink: 0; }
-    .leg-rect { width: 16px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+--rojo:     #C8102E;   /* accidentes fatales      */
 
-    /* Tabla zonas */
-    .zonas-wrap { overflow-x: auto; }
-    table { width: 100%; border-collapse: collapse; font-size: 0.69rem; }
-    th {
-      background: var(--surface2);
-      color: var(--fg-muted);
-      font-weight: 600;
-      padding: 5px 6px;
-      text-align: left;
-      border-bottom: 1px solid var(--border);
-    }
-    td { padding: 4px 6px; border-bottom: 1px solid var(--border); color: var(--fg); }
-    tr:hover td { background: var(--surface2); }
-    .score-hi { color: var(--rojo);    font-weight: 700; }
-    .score-md { color: var(--warning); font-weight: 700; }
+--warning:  #D4700A;
 
-    /* ══ MAPA ══ */
-    #map-wrap { flex: 1; position: relative; min-width: 0; }
-    #map { width: 100%; height: 100%; }
+/* Superficies claras */
 
-    /* Loading */
-    #loadOverlay {
-      position: absolute; inset: 0;
-      background: rgba(245,246,247,.88);
-      display: flex; flex-direction: column;
-      align-items: center; justify-content: center;
-      gap: 14px; z-index: 2000;
-    }
-    #loadOverlay.hidden { display: none; }
-    .spinner {
-      width: 40px; height: 40px;
-      border: 3px solid var(--border);
-      border-top-color: var(--azul);
-      border-radius: 50%;
-      animation: spin .7s linear infinite;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    #loadMsg { color: var(--fg-muted); font-size: .8rem; }
-    .retry-btn {
-      margin-top: 8px; background: var(--azul);
-      border: none; color: #fff; padding: 8px 18px;
-      border-radius: 6px; cursor: pointer;
-      font-family: 'Inter', sans-serif; font-size: .8rem;
-    }
+--bg:       #F5F6F7;
 
-    /* ══ STATUS BAR ══ */
-    #statusBar {
-      height: 26px;
-      background: var(--panel);
-      border-top: 1px solid var(--border);
-      padding: 0 14px;
-      display: flex; align-items: center;
-      gap: 20px;
-      font-size: 0.64rem;
-      color: var(--fg-dim);
-      flex-shrink: 0;
-    }
-    #statusBar em { color: var(--fg-muted); font-style: normal; font-weight: 500; }
+--panel:    #FFFFFF;
 
-    /* ══ POPUP ══ */
-    .leaflet-popup-content-wrapper {
-      background: #fff !important;
-      color: var(--fg) !important;
-      border: 1px solid var(--border) !important;
-      border-radius: 10px !important;
-      box-shadow: var(--shadow-md) !important;
-    }
-    .leaflet-popup-tip { background: #fff !important; }
-    .pop-title {
-      font-family: 'Barlow Condensed', sans-serif;
-      font-size: 1rem; font-weight: 700;
-      color: var(--fg); margin-bottom: 7px;
-      padding-bottom: 6px;
-      border-bottom: 2px solid var(--border);
-    }
-    .pop-row {
-      font-size: 0.75rem; margin-bottom: 3px;
-      display: flex; gap: 6px;
-    }
-    .pop-row span { color: var(--fg-muted); min-width: 72px; flex-shrink: 0; }
-    .pop-gmaps {
-      display: inline-flex; align-items: center; gap: 5px;
-      margin-top: 8px;
-      background: #1A73E8;
-      color: #fff;
-      font-size: 0.7rem; font-weight: 600;
-      padding: 4px 10px; border-radius: 5px;
-      text-decoration: none;
-    }
-    .pop-gmaps:hover { background: #1558C0; }
-    .pop-badge {
-      display: inline-block; padding: 2px 8px;
-      border-radius: 10px; font-size: 0.67rem; font-weight: 600;
-      margin-top: 5px; margin-right: 4px;
-    }
-    .badge-fatal  { background: #fde8ec; color: #a50f26; border: 1px solid #f0b8c0; }
-    .badge-herido { background: #fef3e2; color: #9a4e06; border: 1px solid #f5c97a; }
-    .badge-danos  { background: #e6f4ee; color: #005a30; border: 1px solid #9dd3b6; }
+--surface2: #F0F2F4;
 
-    /* Checkboxes de gravedad */
-    .grav-checks { display: flex; flex-direction: column; gap: 5px; }
-    .grav-item {
-      display: flex; align-items: center; gap: 7px;
-      font-size: 0.73rem; color: var(--fg-muted);
-      cursor: pointer; padding: 5px 7px;
-      border: 1px solid var(--border); border-radius: 6px;
-      background: var(--surface2);
-      transition: border-color .12s, background .12s;
-      user-select: none;
-    }
-    .grav-item:hover { border-color: var(--azul); }
-    .grav-item input[type=checkbox] { accent-color: var(--azul); cursor: pointer; width: 14px; height: 14px; flex-shrink: 0; }
-    .grav-item input[type=checkbox]:checked + .grav-dot + * { color: var(--fg); font-weight: 500; }
-    .grav-item:has(input:checked) { background: #EEF3FB; border-color: var(--azul); color: var(--fg); font-weight: 500; }
-    .grav-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+--border:   #DDE1E6;
 
-    /* ══ RESPONSIVE ══ */
-    @media (max-width: 680px) {
-      .layout { flex-direction: column; }
-      #sidebar { width: 100%; max-height: 40vh; flex-direction: row; flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; }
-      #sidebar .sec { min-width: 210px; border-right: 1px solid var(--border); border-bottom: none; }
-    }
-  </style>
+/* Texto */
+
+--fg:       #1A2028;
+
+--fg-muted: #5A6475;
+
+--fg-dim:   #9AA3B0;
+
+--shadow:   0 1px 6px rgba(0,0,0,.10);
+
+--shadow-md:0 2px 14px rgba(0,0,0,.13);
+
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+
+height: 100%;
+
+font-family: 'Inter', system-ui, sans-serif;
+
+font-size: 14px;
+
+background: var(--bg);
+
+color: var(--fg);
+
+overflow: hidden;
+
+}
+
+/* ══ HEADER ══ */
+
+header {
+
+position: relative;
+
+background: var(--azul);
+
+height: 52px;
+
+display: flex;
+
+align-items: center;
+
+padding: 0 18px;
+
+flex-shrink: 0;
+
+z-index: 500;
+
+box-shadow: 0 2px 8px rgba(0,48,135,.3);
+
+}
+
+header::after {
+
+content: '';
+
+position: absolute;
+
+bottom: 0; left: 0; right: 0;
+
+height: 4px;
+
+background: var(--verde);
+
+}
+
+header h1 {
+
+font-family: 'Barlow Condensed', sans-serif;
+
+font-size: 1.15rem;
+
+font-weight: 700;
+
+color: #fff;
+
+letter-spacing: 0.04em;
+
+line-height: 1;
+
+}
+
+header p {
+
+font-size: 0.67rem;
+
+color: rgba(255,255,255,.72);
+
+margin-top: 2px;
+
+}
+
+/* ══ LAYOUT ══ */
+
+.layout {
+
+display: flex;
+
+height: calc(100% - 52px - 26px);
+
+}
+
+/* ══ SIDEBAR ══ */
+
+#sidebar {
+
+width: 282px;
+
+flex-shrink: 0;
+
+background: var(--panel);
+
+border-right: 1px solid var(--border);
+
+display: flex;
+
+flex-direction: column;
+
+overflow-y: auto;
+
+overflow-x: hidden;
+
+}
+
+#sidebar::-webkit-scrollbar { width: 4px; }
+
+#sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+.sec {
+
+padding: 11px 13px;
+
+border-bottom: 1px solid var(--border);
+
+}
+
+.sec-title {
+
+font-family: 'Barlow Condensed', sans-serif;
+
+font-size: 0.72rem;
+
+font-weight: 700;
+
+letter-spacing: 0.12em;
+
+text-transform: uppercase;
+
+color: var(--fg-dim);
+
+margin-bottom: 9px;
+
+}
+
+/* KPI grid */
+
+.kpi-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+
+.kpi {
+
+background: var(--surface2);
+
+border: 1px solid var(--border);
+
+border-radius: 7px;
+
+padding: 9px 8px;
+
+text-align: center;
+
+}
+
+.kpi .num {
+
+font-family: 'Barlow Condensed', sans-serif;
+
+font-size: 1.7rem;
+
+font-weight: 700;
+
+line-height: 1;
+
+color: var(--fg);
+
+font-variant-numeric: tabular-nums;
+
+}
+
+.kpi .lbl { font-size: 0.6rem; color: var(--fg-muted); margin-top: 3px; text-transform: uppercase; letter-spacing: .05em; }
+
+.kpi.c-rojo  .num { color: var(--rojo); }
+
+.kpi.c-warn  .num { color: var(--warning); }
+
+.kpi.c-verde .num { color: var(--verde); }
+
+/* Botones capa */
+
+.layer-btn {
+
+width: 100%;
+
+background: var(--surface2);
+
+border: 1px solid var(--border);
+
+color: var(--fg-muted);
+
+border-radius: 6px;
+
+padding: 7px 10px;
+
+margin-bottom: 5px;
+
+cursor: pointer;
+
+font-size: 0.75rem;
+
+font-family: 'Inter', sans-serif;
+
+text-align: left;
+
+display: flex;
+
+align-items: center;
+
+gap: 8px;
+
+transition: all .15s;
+
+}
+
+.layer-btn:last-child { margin-bottom: 0; }
+
+.layer-btn.on { background: #EEF3FB; border-color: var(--azul); color: var(--fg); }
+
+.layer-btn:hover { border-color: var(--azul); }
+
+.layer-btn .dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+
+.layer-btn .check { margin-left: auto; font-size: 0.7rem; opacity: 0; color: var(--azul); }
+
+.layer-btn.on .check { opacity: 1; }
+
+/* Slider */
+
+.slider-header {
+
+display: flex;
+
+justify-content: space-between;
+
+align-items: baseline;
+
+margin-bottom: 8px;
+
+}
+
+.slider-header .val {
+
+font-family: 'Barlow Condensed', sans-serif;
+
+font-size: 1.4rem;
+
+font-weight: 700;
+
+color: var(--warning);
+
+line-height: 1;
+
+}
+
+input[type=range] {
+
+width: 100%;
+
+accent-color: var(--azul);
+
+cursor: pointer;
+
+}
+
+.slider-legend {
+
+display: flex;
+
+gap: 12px;
+
+margin-top: 7px;
+
+}
+
+.sl-item {
+
+display: flex;
+
+align-items: center;
+
+gap: 4px;
+
+font-size: 0.67rem;
+
+color: var(--fg-muted);
+
+}
+
+.sl-item strong { color: var(--fg); }
+
+/* Filtros */
+
+.flt-label {
+
+font-size: 0.67rem;
+
+color: var(--fg-dim);
+
+text-transform: uppercase;
+
+letter-spacing: .05em;
+
+margin-bottom: 3px;
+
+display: block;
+
+}
+
+select {
+
+width: 100%;
+
+background: var(--surface2);
+
+border: 1px solid var(--border);
+
+color: var(--fg);
+
+border-radius: 6px;
+
+padding: 6px 8px;
+
+font-size: 0.75rem;
+
+font-family: 'Inter', sans-serif;
+
+margin-bottom: 7px;
+
+outline: none;
+
+cursor: pointer;
+
+}
+
+select:focus { border-color: var(--azul); }
+
+/* Leyenda */
+
+.leg-item {
+
+display: flex;
+
+align-items: center;
+
+gap: 8px;
+
+font-size: 0.71rem;
+
+color: var(--fg-muted);
+
+margin-bottom: 5px;
+
+}
+
+.leg-dot  { width: 11px; height: 11px; border-radius: 50%; flex-shrink: 0; }
+
+.leg-rect { width: 16px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+
+/* Tabla zonas */
+
+.zonas-wrap { overflow-x: auto; }
+
+table { width: 100%; border-collapse: collapse; font-size: 0.69rem; }
+
+th {
+
+background: var(--surface2);
+
+color: var(--fg-muted);
+
+font-weight: 600;
+
+padding: 5px 6px;
+
+text-align: left;
+
+border-bottom: 1px solid var(--border);
+
+}
+
+td { padding: 4px 6px; border-bottom: 1px solid var(--border); color: var(--fg); }
+
+tr:hover td { background: var(--surface2); }
+
+.score-hi { color: var(--rojo);    font-weight: 700; }
+
+.score-md { color: var(--warning); font-weight: 700; }
+
+/* ══ MAPA ══ */
+
+#map-wrap { flex: 1; position: relative; min-width: 0; }
+
+#map { width: 100%; height: 100%; }
+
+/* Loading */
+
+#loadOverlay {
+
+position: absolute; inset: 0;
+
+background: rgba(245,246,247,.88);
+
+display: flex; flex-direction: column;
+
+align-items: center; justify-content: center;
+
+gap: 14px; z-index: 2000;
+
+}
+
+#loadOverlay.hidden { display: none; }
+
+.spinner {
+
+width: 40px; height: 40px;
+
+border: 3px solid var(--border);
+
+border-top-color: var(--azul);
+
+border-radius: 50%;
+
+animation: spin .7s linear infinite;
+
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+#loadMsg { color: var(--fg-muted); font-size: .8rem; }
+
+.retry-btn {
+
+margin-top: 8px; background: var(--azul);
+
+border: none; color: #fff; padding: 8px 18px;
+
+border-radius: 6px; cursor: pointer;
+
+font-family: 'Inter', sans-serif; font-size: .8rem;
+
+}
+
+/* ══ STATUS BAR ══ */
+
+#statusBar {
+
+height: 26px;
+
+background: var(--panel);
+
+border-top: 1px solid var(--border);
+
+padding: 0 14px;
+
+display: flex; align-items: center;
+
+gap: 20px;
+
+font-size: 0.64rem;
+
+color: var(--fg-dim);
+
+flex-shrink: 0;
+
+}
+
+#statusBar em { color: var(--fg-muted); font-style: normal; font-weight: 500; }
+
+/* ══ POPUP ══ */
+
+.leaflet-popup-content-wrapper {
+
+background: #fff !important;
+
+color: var(--fg) !important;
+
+border: 1px solid var(--border) !important;
+
+border-radius: 10px !important;
+
+box-shadow: var(--shadow-md) !important;
+
+}
+
+.leaflet-popup-tip { background: #fff !important; }
+
+.pop-title {
+
+font-family: 'Barlow Condensed', sans-serif;
+
+font-size: 1rem; font-weight: 700;
+
+color: var(--fg); margin-bottom: 7px;
+
+padding-bottom: 6px;
+
+border-bottom: 2px solid var(--border);
+
+}
+
+.pop-row {
+
+font-size: 0.75rem; margin-bottom: 3px;
+
+display: flex; gap: 6px;
+
+}
+
+.pop-row span { color: var(--fg-muted); min-width: 72px; flex-shrink: 0; }
+
+.pop-gmaps {
+
+display: inline-flex; align-items: center; gap: 5px;
+
+margin-top: 8px;
+
+background: #1A73E8;
+
+color: #fff;
+
+font-size: 0.7rem; font-weight: 600;
+
+padding: 4px 10px; border-radius: 5px;
+
+text-decoration: none;
+
+}
+
+.pop-gmaps:hover { background: #1558C0; }
+
+.pop-badge {
+
+display: inline-block; padding: 2px 8px;
+
+border-radius: 10px; font-size: 0.67rem; font-weight: 600;
+
+margin-top: 5px; margin-right: 4px;
+
+}
+
+.badge-fatal  { background: #fde8ec; color: #a50f26; border: 1px solid #f0b8c0; }
+
+.badge-herido { background: #fef3e2; color: #9a4e06; border: 1px solid #f5c97a; }
+
+.badge-danos  { background: #e6f4ee; color: #005a30; border: 1px solid #9dd3b6; }
+
+/* Checkboxes de gravedad */
+
+.grav-checks { display: flex; flex-direction: column; gap: 5px; }
+
+.grav-item {
+
+display: flex; align-items: center; gap: 7px;
+
+font-size: 0.73rem; color: var(--fg-muted);
+
+cursor: pointer; padding: 5px 7px;
+
+border: 1px solid var(--border); border-radius: 6px;
+
+background: var(--surface2);
+
+transition: border-color .12s, background .12s;
+
+user-select: none;
+
+}
+
+.grav-item:hover { border-color: var(--azul); }
+
+.grav-item input[type=checkbox] { accent-color: var(--azul); cursor: pointer; width: 14px; height: 14px; flex-shrink: 0; }
+
+.grav-item input[type=checkbox]:checked + .grav-dot + * { color: var(--fg); font-weight: 500; }
+
+.grav-item:has(input:checked) { background: #EEF3FB; border-color: var(--azul); color: var(--fg); font-weight: 500; }
+
+.grav-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+
+/* ══ RESPONSIVE ══ */
+
+@media (max-width: 680px) {
+
+.layout { flex-direction: column; }
+
+#sidebar { width: 100%; max-height: 40vh; flex-direction: row; flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; }
+
+#sidebar .sec { min-width: 210px; border-right: 1px solid var(--border); border-bottom: none; }
+
+}
+
+</style>
+
 </head>
+
 <body>
 
 <!-- ══ HEADER ══ -->
+
 <header>
-  <div>
-    <h1>Mapa de Siniestros Viales · Aguazul</h1>
-  </div>
+
+<div>
+
+<h1>Mapa de Siniestros Viales · Aguazul</h1>
+
+</div>
+
 </header>
 
 <!-- ══ LAYOUT ══ -->
+
 <div class="layout">
 
-  <!-- ────── SIDEBAR ────── -->
-  <div id="sidebar">
+<!-- ────── SIDEBAR ────── -->
 
-    <!-- KPIs -->
-    <div class="sec">
-      <div class="sec-title">📊 Resumen</div>
-      <div class="kpi-grid">
-        <div class="kpi">
-          <div class="num" id="kpiTotal">–</div>
-          <div class="lbl">Siniestros</div>
-        </div>
-        <div class="kpi c-rojo">
-          <div class="num" id="kpiFatales">–</div>
-          <div class="lbl">Fallecidos</div>
-        </div>
-        <div class="kpi c-warn">
-          <div class="num" id="kpiHeridos">–</div>
-          <div class="lbl">Heridos</div>
-        </div>
-        <div class="kpi c-verde">
-          <div class="num" id="kpiZonas">–</div>
-          <div class="lbl">Zonas críticas</div>
-        </div>
-      </div>
-    </div>
+<div id="sidebar">
 
-    <!-- Capas -->
-    <div class="sec">
-      <div class="sec-title">🗂️ Capas</div>
-      <button class="layer-btn on" id="btnClusters" onclick="toggleLayer('clusters')">
-        <div class="dot" style="background:#4a90d9"></div>
-        Agrupamiento por zona
-        <span class="check">✓</span>
-      </button>
-      <button class="layer-btn on" id="btnZonas" onclick="toggleLayer('zonas')">
-        <div class="dot" style="background:#C8102E"></div>
-        Zonas críticas (buffer)
-        <span class="check">✓</span>
-      </button>
-      <button class="layer-btn" id="btnCalor" onclick="toggleLayer('calor')">
-        <div class="dot" style="background:#ff6b00"></div>
-        Mapa de calor
-        <span class="check">✓</span>
-      </button>
-    </div>
+<!-- KPIs -->
 
-    <!-- Umbral -->
-    <div class="sec">
-      <div class="sec-title">⚡ Umbral Zona Crítica</div>
-      <div class="slider-header">
-        <span style="font-size:.74rem;color:var(--fg-muted)">Puntaje mínimo</span>
-        <span class="val" id="sliderVal">24</span>
-      </div>
-      <input type="range" id="sliderUmbral" min="2" max="120" value="24" step="2"
-             oninput="onSlider(this.value)" />
-      <div class="slider-legend">
-        <div class="sl-item">⚰️ <strong>12 pts</strong>&nbsp;/ fallecido</div>
-        <div class="sl-item">🤕 <strong>2 pts</strong>&nbsp;/ herido</div>
-      </div>
-    </div>
+<div class="sec">
 
-    <!-- Filtros -->
-    <div class="sec">
-      <div class="sec-title">🔍 Filtros</div>
+<div class="sec-title">📊 Resumen</div>
 
-      <label class="flt-label">Año</label>
-      <select id="fAno" onchange="applyFilters()">
-        <option value="">Todos los años</option>
-      </select>
+<div class="kpi-grid">
 
-      <label class="flt-label">Clase de accidente</label>
-      <select id="fClase" onchange="applyFilters()">
-        <option value="">Todas</option>
-      </select>
+<div class="kpi">
 
-      <label class="flt-label" style="margin-bottom:6px">Gravedad <span style="font-size:.6rem;color:var(--fg-dim)">(selección múltiple)</span></label>
-      <div class="grav-checks">
-        <label class="grav-item">
-          <input type="checkbox" value="fatal"   onchange="applyFilters()" />
-          <span class="grav-dot" style="background:#C8102E"></span>Con muertos
-        </label>
-        <label class="grav-item">
-          <input type="checkbox" value="heridos" onchange="applyFilters()" />
-          <span class="grav-dot" style="background:#D4700A"></span>Con heridos
-        </label>
-        <label class="grav-item">
-          <input type="checkbox" value="danos"   onchange="applyFilters()" />
-          <span class="grav-dot" style="background:#006B3C"></span>Solo daños
-        </label>
-      </div>
-    </div>
+<div class="num" id="kpiTotal">–</div>
 
-    <!-- Leyenda -->
-    <div class="sec">
-      <div class="sec-title">📌 Leyenda</div>
-      <div class="leg-item"><div class="leg-dot" style="background:#C8102E"></div>Con muertos</div>
-      <div class="leg-item"><div class="leg-dot" style="background:#D4700A"></div>Con heridos</div>
-      <div class="leg-item"><div class="leg-dot" style="background:#006B3C"></div>Solo daños</div>
-      <div class="leg-item">
-        <div class="leg-rect" style="background:rgba(200,16,46,.12);border:1.5px dashed #C8102E"></div>
-        Zona crítica (radio dinámico)
-      </div>
-    </div>
+<div class="lbl">Siniestros</div>
 
-    <!-- Top zonas -->
-    <div class="sec">
-      <div class="sec-title">🚨 Top Zonas Críticas</div>
-      <div class="zonas-wrap">
-        <table>
-          <thead><tr><th>#</th><th>Eventos</th><th>Puntaje</th></tr></thead>
-          <tbody id="zonasBody">
-            <tr><td colspan="3" style="color:var(--fg-dim);padding:6px">Calculando…</td></tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
+</div>
 
-  </div><!-- /sidebar -->
+<div class="kpi c-rojo">
 
-  <!-- ────── MAPA ────── -->
-  <div id="map-wrap">
-    <div id="loadOverlay">
-      <div class="spinner"></div>
-      <div id="loadMsg">Descargando datos de siniestros…</div>
-    </div>
-    <div id="map"></div>
-  </div>
+<div class="num" id="kpiFatales">–</div>
+
+<div class="lbl">Fallecidos</div>
+
+</div>
+
+<div class="kpi c-warn">
+
+<div class="num" id="kpiHeridos">–</div>
+
+<div class="lbl">Heridos</div>
+
+</div>
+
+<div class="kpi c-verde">
+
+<div class="num" id="kpiZonas">–</div>
+
+<div class="lbl">Zonas críticas</div>
+
+</div>
+
+</div>
+
+</div>
+
+<!-- Capas -->
+
+<div class="sec">
+
+<div class="sec-title">🗂️ Capas</div>
+
+<button class="layer-btn on" id="btnClusters" onclick="toggleLayer('clusters')">
+
+<div class="dot" style="background:#4a90d9"></div>
+
+Agrupamiento por zona
+
+<span class="check">✓</span>
+
+</button>
+
+<button class="layer-btn on" id="btnZonas" onclick="toggleLayer('zonas')">
+
+<div class="dot" style="background:#C8102E"></div>
+
+Zonas críticas (buffer)
+
+<span class="check">✓</span>
+
+</button>
+
+<button class="layer-btn" id="btnCalor" onclick="toggleLayer('calor')">
+
+<div class="dot" style="background:#ff6b00"></div>
+
+Mapa de calor
+
+<span class="check">✓</span>
+
+</button>
+
+</div>
+
+<!-- Umbral -->
+
+<div class="sec">
+
+<div class="sec-title">⚡ Umbral Zona Crítica</div>
+
+<div class="slider-header">
+
+<span style="font-size:.74rem;color:var(--fg-muted)">Puntaje mínimo</span>
+
+<span class="val" id="sliderVal">24</span>
+
+</div>
+
+<input type="range" id="sliderUmbral" min="2" max="120" value="24" step="2"
+
+oninput="onSlider(this.value)" />
+
+<div class="slider-legend">
+
+<div class="sl-item">⚰️ <strong>12 pts</strong>&nbsp;/ fallecido</div>
+
+<div class="sl-item">🤕 <strong>2 pts</strong>&nbsp;/ herido</div>
+
+</div>
+
+</div>
+
+<!-- Filtros -->
+
+<div class="sec">
+
+<div class="sec-title">🔍 Filtros</div>
+
+<label class="flt-label">Año <span style="font-size:.6rem;color:var(--fg-dim)">(selección múltiple)</span></label>
+
+<select id="fAno" multiple onchange="applyFilters()" style="height:auto;min-height:36px"></select>
+
+<label class="flt-label">Clase de accidente</label>
+
+<select id="fClase" onchange="applyFilters()">
+
+<option value="">Todas</option>
+
+</select>
+
+<label class="flt-label" style="margin-bottom:6px">Gravedad <span style="font-size:.6rem;color:var(--fg-dim)">(selección múltiple)</span></label>
+
+<div class="grav-checks">
+
+<label class="grav-item">
+
+<input type="checkbox" value="fatal"   onchange="applyFilters()" />
+
+<span class="grav-dot" style="background:#C8102E"></span>Con muertos
+
+</label>
+
+<label class="grav-item">
+
+<input type="checkbox" value="heridos" onchange="applyFilters()" />
+
+<span class="grav-dot" style="background:#D4700A"></span>Con heridos
+
+</label>
+
+<label class="grav-item">
+
+<input type="checkbox" value="danos"   onchange="applyFilters()" />
+
+<span class="grav-dot" style="background:#006B3C"></span>Solo daños
+
+</label>
+
+</div>
+
+</div>
+
+<!-- Leyenda -->
+
+<div class="sec">
+
+<div class="sec-title">📌 Leyenda</div>
+
+<div class="leg-item"><div class="leg-dot" style="background:#C8102E"></div>Con muertos</div>
+
+<div class="leg-item"><div class="leg-dot" style="background:#D4700A"></div>Con heridos</div>
+
+<div class="leg-item"><div class="leg-dot" style="background:#006B3C"></div>Solo daños</div>
+
+<div class="leg-item">
+
+<div class="leg-rect" style="background:rgba(200,16,46,.12);border:1.5px dashed #C8102E"></div>
+
+Zona crítica (radio dinámico)
+
+</div>
+
+</div>
+
+<!-- Top zonas -->
+
+<div class="sec">
+
+<div class="sec-title">🚨 Top Zonas Críticas</div>
+
+<div class="zonas-wrap">
+
+<table>
+
+<thead><tr><th>#</th><th>Eventos</th><th>Puntaje</th></tr></thead>
+
+<tbody id="zonasBody">
+
+<tr><td colspan="3" style="color:var(--fg-dim);padding:6px">Calculando…</td></tr>
+
+</tbody>
+
+</table>
+
+</div>
+
+</div>
+
+</div><!-- /sidebar -->
+
+<!-- ────── MAPA ────── -->
+
+<div id="map-wrap">
+
+<div id="loadOverlay">
+
+<div class="spinner"></div>
+
+<div id="loadMsg">Descargando datos de siniestros…</div>
+
+</div>
+
+<div id="map"></div>
+
+</div>
 
 </div><!-- /layout -->
 
 <!-- ══ STATUS BAR ══ -->
+
 <div id="statusBar">
-  <span>Fuente: Google Sheets · ONSV / ANSV</span>
-  <span>Visibles: <em id="stPuntos">–</em></span>
-  <span>Zonas críticas: <em id="stZonas">–</em></span>
-  <span style="margin-left:auto">Actualizado: <em id="stFecha">–</em></span>
+
+<span>Fuente: Google Sheets · ONSV / ANSV</span>
+
+<span>Visibles: <em id="stPuntos">–</em></span>
+
+<span>Zonas críticas: <em id="stZonas">–</em></span>
+
+<span style="margin-left:auto">Actualizado: <em id="stFecha">–</em></span>
+
 </div>
 
-
 <!-- ════════════════ SCRIPTS ════════════════ -->
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/leaflet.markercluster.min.js"></script>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.heat/0.2.0/leaflet-heat.js"></script>
 
 <script>
+
 'use strict';
 
 /* ── CONFIG ── */
+
 const CSV_URL  = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vS4iQ9hd5u1hkC7Uy-jmAEx-QSme-jp7W7bQuQim5rWvxKBqBR-kEuGZnoVD4ief-5c8MdcJsibOn4A/pub?output=csv';
+
 const CENTRO   = [5.1715, -72.5536];   /* Aguazul, Casanare */
+
 const ZOOM_0   = 13;
+
 const EPS_KM   = 0.08;   /* 80 m — radio de intersección puntual */
+
 const MIN_PTS  = 2;
+
 const PTS_M    = 12;
+
 const PTS_H    = 2;
 
 /* ── ESTADO ── */
+
 let allData = [], filteredData = [];
+
 let umbral  = 24;
+
 let clusterGroup = null, heatLyr = null, zonasGroup = null;
+
 const layerOn = { clusters: true, zonas: true, calor: false };
 
 /* ── MAPA BASE ── */
+
 const map = L.map('map', { zoomControl: true }).setView(CENTRO, ZOOM_0);
 
 const tiles = {
-  'Calles (OSM)': L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-    maxZoom: 19
-  }),
-  'Topo': L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
-    attribution: '© OpenStreetMap contributors, © OpenTopoMap', maxZoom: 17
-  }),
-  'Satélite (Esri)': L.tileLayer(
-    'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-    { attribution: 'Tiles © Esri', maxZoom: 19 }
-  )
+
+'Calles (OSM)': L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+
+attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+
+maxZoom: 19
+
+}),
+
+'Topo': L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+
+attribution: '© OpenStreetMap contributors, © OpenTopoMap', maxZoom: 17
+
+}),
+
+'Satélite (Esri)': L.tileLayer(
+
+'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+
+{ attribution: 'Tiles © Esri', maxZoom: 19 }
+
+)
+
 };
+
 tiles['Calles (OSM)'].addTo(map);
+
 L.control.layers(tiles, {}, { position: 'topright' }).addTo(map);
 
 /* ── CSV ── */
+
 function parseCSV(text) {
-  const lines = text.replace(/\r\n/g,'\n').replace(/\r/g,'\n').trim().split('\n');
-  if (lines.length < 2) return [];
-  const headers = splitLine(lines[0]);
-  return lines.slice(1).map(l => {
-    const v = splitLine(l), o = {};
-    headers.forEach((h,i) => { o[h.trim()] = (v[i]||'').trim(); });
-    return o;
-  }).filter(o => Object.values(o).some(v => v !== ''));
+
+const lines = text.replace(/\r\n/g,'\n').replace(/\r/g,'\n').trim().split('\n');
+
+if (lines.length < 2) return [];
+
+const headers = splitLine(lines[0]);
+
+return lines.slice(1).map(l => {
+
+const v = splitLine(l), o = {};
+
+headers.forEach((h,i) => { o[h.trim()] = (v[i]||'').trim(); });
+
+return o;
+
+}).filter(o => Object.values(o).some(v => v !== ''));
+
 }
+
 function splitLine(l) {
-  const r=[]; let cur='', inQ=false;
-  for(let i=0;i<l.length;i++){
-    const c=l[i];
-    if(c==='"'){ if(inQ&&l[i+1]==='"'){cur+='"';i++;}else inQ=!inQ; }
-    else if(c===','&&!inQ){ r.push(cur); cur=''; }
-    else cur+=c;
-  }
-  r.push(cur); return r;
+
+const r=[]; let cur='', inQ=false;
+
+for(let i=0;i<l.length;i++){
+
+const c=l[i];
+
+if(c==='"'){ if(inQ&&l[i+1]==='"'){cur+='"';i++;}else inQ=!inQ; }
+
+else if(c===','&&!inQ){ r.push(cur); cur=''; }
+
+else cur+=c;
+
+}
+
+r.push(cur); return r;
+
 }
 
 /* ── PARSE REGISTRO ── */
+
 function parseReg(row) {
-  let lat = null, lon = null;
 
-  // Columna combinada "Coordenadas" (formato "5.169194, -72.549847")
-  const coord = row['Coordenadas'] || row['coordenadas'] || '';
-  if(coord.trim() !== '') {
-    const p = coord.split(',');
-    if(p.length === 2) {
-      lat = toF(p[0].trim());
-      lon = toF(p[1].trim());
-    }
-  }
-  // Fallback: columnas separadas
-  if(!lat || !lon || isNaN(lat) || isNaN(lon)) {
-    lat = toF(row['Latitude']||row['Latitud']||row['latitud']||row['LAT']||'');
-    lon = toF(row['Longitude']||row['Longitud']||row['longitud']||row['LON']||'');
-  }
+let lat = null, lon = null;
 
-  if(!lat||!lon||isNaN(lat)||isNaN(lon)) return null;
-  /* Validación geográfica Casanare / Aguazul */
-  if(lat<4.5||lat>7.0||lon<-73.5||lon>-70.5) return null;
+// Columna combinada "Coordenadas" (formato "5.169194, -72.549847")
 
-  // Nombres de columna exactos de la hoja de Aguazul
-  const muertos = toI(row['Cant_Muertos']||row['Cant_Muert']||row['Fallecidos']||'0');
-  const heridos  = toI(row['Cantidad_Heridos']||row['Cantidad_Heric']||row['Heridos']||'0');
-  const score    = muertos*PTS_M + heridos*PTS_H;
-  const fecha    = row['FechaHecho']||row['FechaHec']||row['Fecha']||'';
-  const anoM     = fecha.match(/(\d{4})/);
+const coord = row['Coordenadas'] || row['coordenadas'] || '';
 
-  return {
-    lat, lon, muertos, heridos, score, fecha,
-    ano      : anoM ? anoM[1] : '',
-    clase    : row['ClaseAcc']||row['Clase']||'',
-    gravedad : row['Gravedad']||'',
-    municipio: row['Municipio']||row['municipio']||'',
-    hora     : row['HoraHecho']||row['HoraHech']||row['Hora']||'',
-  };
+if(coord.trim() !== '') {
+
+const p = coord.split(',');
+
+if(p.length === 2) {
+
+lat = toF(p[0].trim());
+
+lon = toF(p[1].trim());
+
 }
+
+}
+
+// Fallback: columnas separadas
+
+if(!lat || !lon || isNaN(lat) || isNaN(lon)) {
+
+lat = toF(row['Latitude']||row['Latitud']||row['latitud']||row['LAT']||'');
+
+lon = toF(row['Longitude']||row['Longitud']||row['longitud']||row['LON']||'');
+
+}
+
+if(!lat||!lon||isNaN(lat)||isNaN(lon)) return null;
+
+/* Validación geográfica Casanare / Aguazul */
+
+if(lat<4.5||lat>7.0||lon<-73.5||lon>-70.5) return null;
+
+// Nombres de columna exactos de la hoja de Aguazul
+
+const muertos = toI(row['Cant_Muertos']||row['Cant_Muert']||row['Fallecidos']||'0');
+
+const heridos  = toI(row['Cantidad_Heridos']||row['Cantidad_Heric']||row['Heridos']||'0');
+
+const score    = muertos*PTS_M + heridos*PTS_H;
+
+const fecha    = row['FechaHecho']||row['FechaHec']||row['Fecha']||'';
+
+const anoM     = fecha.match(/(\d{4})/);
+
+return {
+
+lat, lon, muertos, heridos, score, fecha,
+
+ano      : anoM ? anoM[1] : '',
+
+clase    : row['ClaseAcc']||row['Clase']||'',
+
+gravedad : row['Gravedad']||'',
+
+municipio: row['Municipio']||row['municipio']||'',
+
+hora     : row['HoraHecho']||row['HoraHech']||row['Hora']||'',
+
+};
+
+}
+
 const toF = v => v===''||v==null ? null : parseFloat(String(v).replace(',','.'));
+
 const toI = v => { const n=parseInt(v,10); return isNaN(n)?0:n; };
 
 /* ── DBSCAN ── */
+
 function hav(lat1,lon1,lat2,lon2){
-  const R=6371,D=Math.PI/180;
-  const dL=(lat2-lat1)*D, dO=(lon2-lon1)*D;
-  return 2*R*Math.asin(Math.sqrt(Math.sin(dL/2)**2+Math.cos(lat1*D)*Math.cos(lat2*D)*Math.sin(dO/2)**2));
+
+const R=6371,D=Math.PI/180;
+
+const dL=(lat2-lat1)*D, dO=(lon2-lon1)*D;
+
+return 2*R*Math.asin(Math.sqrt(Math.sin(dL/2)**2+Math.cos(lat1*D)*Math.cos(lat2*D)*Math.sin(dO/2)**2));
+
 }
+
 function nbrs(pts,i,eps){
-  const r=[];
-  for(let j=0;j<pts.length;j++) if(j!==i&&hav(pts[i].lat,pts[i].lon,pts[j].lat,pts[j].lon)<=eps) r.push(j);
-  return r;
+
+const r=[];
+
+for(let j=0;j<pts.length;j++) if(j!==i&&hav(pts[i].lat,pts[i].lon,pts[j].lat,pts[j].lon)<=eps) r.push(j);
+
+return r;
+
 }
+
 function dbscan(pts,eps,minPts){
-  const n=pts.length, lbl=new Array(n).fill(null); let cid=0;
-  for(let i=0;i<n;i++){
-    if(lbl[i]!==null) continue;
-    const nb=nbrs(pts,i,eps);
-    if(nb.length<minPts){lbl[i]=-1;continue;}
-    lbl[i]=cid;
-    const seed=[...nb];
-    for(let s=0;s<seed.length;s++){
-      const q=seed[s];
-      if(lbl[q]===-1) lbl[q]=cid;
-      if(lbl[q]!==null) continue;
-      lbl[q]=cid;
-      const qn=nbrs(pts,q,eps);
-      if(qn.length>=minPts) qn.forEach(x=>{if(!seed.includes(x))seed.push(x);});
-    }
-    cid++;
-  }
-  return lbl;
+
+const n=pts.length, lbl=new Array(n).fill(null); let cid=0;
+
+for(let i=0;i<n;i++){
+
+if(lbl[i]!==null) continue;
+
+const nb=nbrs(pts,i,eps);
+
+if(nb.length<minPts){lbl[i]=-1;continue;}
+
+lbl[i]=cid;
+
+const seed=[...nb];
+
+for(let s=0;s<seed.length;s++){
+
+const q=seed[s];
+
+if(lbl[q]===-1) lbl[q]=cid;
+
+if(lbl[q]!==null) continue;
+
+lbl[q]=cid;
+
+const qn=nbrs(pts,q,eps);
+
+if(qn.length>=minPts) qn.forEach(x=>{if(!seed.includes(x))seed.push(x);});
+
+}
+
+cid++;
+
+}
+
+return lbl;
+
 }
 
 /* ── COLOR ── */
+
 function gCol(d){
-  if(d.muertos>0) return '#C8102E';
-  if(d.heridos>0) return '#D4700A';
-  return '#006B3C';
+
+if(d.muertos>0) return '#C8102E';
+
+if(d.heridos>0) return '#D4700A';
+
+return '#006B3C';
+
 }
+
 function mkIcon(color){
-  return L.divIcon({
-    className:'',
-    html:`<div style="width:11px;height:11px;background:${color};border:2px solid rgba(255,255,255,.8);border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,.35)"></div>`,
-    iconSize:[11,11], iconAnchor:[5.5,5.5]
-  });
+
+return L.divIcon({
+
+className:'',
+
+html:`<div style="width:11px;height:11px;background:${color};border:2px solid rgba(255,255,255,.8);border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,.35)"></div>`,
+
+iconSize:[11,11], iconAnchor:[5.5,5.5]
+
+});
+
 }
 
 /* ── POPUP ── */
+
 function mkPopup(d){
-  const badgeCls = d.muertos>0?'badge-fatal':d.heridos>0?'badge-herido':'badge-danos';
-  const badgeTxt = d.muertos>0?'⚰️ Con muertos':d.heridos>0?'🤕 Con heridos':'🚗 Solo daños';
-  const gmaps = `https://www.google.com/maps?q=${d.lat},${d.lon}&z=17&t=h`;
-  return `
-    <div style="min-width:195px;padding:2px 0">
-      <div class="pop-title">🚦 Siniestro Vial</div>
-      <div class="pop-row"><span>📅 Fecha</span>${d.fecha||'–'}</div>
-      <div class="pop-row"><span>🕐 Hora</span>${d.hora||'–'}</div>
-      <div class="pop-row"><span>📍 Municipio</span>${d.municipio||'–'}</div>
-      <div class="pop-row"><span>💥 Clase</span>${d.clase||'–'}</div>
-      <div class="pop-row"><span>⚰️ Fallecidos</span>${d.muertos}</div>
-      <div class="pop-row"><span>🤕 Heridos</span>${d.heridos}</div>
-      <div class="pop-row"><span>⚡ Puntaje</span><strong>${d.score} pts</strong></div>
-      <div style="margin-top:7px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-        <span class="pop-badge ${badgeCls}">${badgeTxt}</span>
-        <a class="pop-gmaps" href="${gmaps}" target="_blank" rel="noopener">
-          📍 Ver en Google Maps
-        </a>
-      </div>
-    </div>`;
+
+const badgeCls = d.muertos>0?'badge-fatal':d.heridos>0?'badge-herido':'badge-danos';
+
+const badgeTxt = d.muertos>0?'⚰️ Con muertos':d.heridos>0?'🤕 Con heridos':'🚗 Solo daños';
+
+const gmaps = `https://www.google.com/maps?q=${d.lat},${d.lon}&z=17&t=h`;
+
+return `
+
+<div style="min-width:195px;padding:2px 0">
+
+<div class="pop-title">🚦 Siniestro Vial</div>
+
+<div class="pop-row"><span>📅 Fecha</span>${d.fecha||'–'}</div>
+
+<div class="pop-row"><span>🕐 Hora</span>${d.hora||'–'}</div>
+
+<div class="pop-row"><span>📍 Municipio</span>${d.municipio||'–'}</div>
+
+<div class="pop-row"><span>💥 Clase</span>${d.clase||'–'}</div>
+
+<div class="pop-row"><span>⚰️ Fallecidos</span>${d.muertos}</div>
+
+<div class="pop-row"><span>🤕 Heridos</span>${d.heridos}</div>
+
+<div class="pop-row"><span>⚡ Puntaje</span><strong>${d.score} pts</strong></div>
+
+<div style="margin-top:7px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+
+<span class="pop-badge ${badgeCls}">${badgeTxt}</span>
+
+<a class="pop-gmaps" href="${gmaps}" target="_blank" rel="noopener">
+
+📍 Ver en Google Maps
+
+</a>
+
+</div>
+
+</div>`;
+
 }
 
 /* ── MARKERS + HEAT ── */
+
 function buildMarkers(data){
-  if(clusterGroup){map.removeLayer(clusterGroup);clusterGroup=null;}
-  if(heatLyr){map.removeLayer(heatLyr);heatLyr=null;}
 
-  clusterGroup = L.markerClusterGroup({
-    maxClusterRadius:55,
-    showCoverageOnHover:false,
-    iconCreateFunction(cluster){
-      const n=cluster.getChildCount();
-      const sz=n<10?30:n<50?38:48;
-      const bg=n<5?'#006B3C':n<20?'#D4700A':'#C8102E';
-      return L.divIcon({
-        html:`<div style="width:${sz}px;height:${sz}px;background:${bg};border:2.5px solid #fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff;font-size:${sz<38?'0.72':'0.85'}rem;font-family:'Barlow Condensed',sans-serif;box-shadow:0 2px 8px rgba(0,0,0,.25)">${n}</div>`,
-        iconSize:[sz,sz],iconAnchor:[sz/2,sz/2]
-      });
-    }
-  });
+if(clusterGroup){map.removeLayer(clusterGroup);clusterGroup=null;}
 
-  const heatPts=[];
-  data.forEach(d=>{
-    L.marker([d.lat,d.lon],{icon:mkIcon(gCol(d))})
-     .bindPopup(mkPopup(d),{maxWidth:260})
-     .addTo(clusterGroup);
-    const intensity = d.score > 0 ? Math.min(1, d.score / 30) : 0.15;
-    heatPts.push([d.lat,d.lon,intensity]);
-  });
+if(heatLyr){map.removeLayer(heatLyr);heatLyr=null;}
 
-  if(layerOn.clusters) clusterGroup.addTo(map);
+clusterGroup = L.markerClusterGroup({
 
-  heatLyr = L.heatLayer(heatPts, {
-    radius:  30,
-    blur:    18,
-    maxZoom: 18,
-    max:     1.0,
-    minOpacity: 0.55,
-    gradient: {
-      0.0: 'rgba(0,107,60,0)',
-      0.2: '#1a9850',
-      0.4: '#fee08b',
-      0.65:'#fc8d59',
-      0.85:'#d73027',
-      1.0: '#a50026'
-    }
-  });
-  if(layerOn.calor) heatLyr.addTo(map);
+maxClusterRadius:55,
+
+showCoverageOnHover:false,
+
+iconCreateFunction(cluster){
+
+const n=cluster.getChildCount();
+
+const sz=n<10?30:n<50?38:48;
+
+const bg=n<5?'#006B3C':n<20?'#D4700A':'#C8102E';
+
+return L.divIcon({
+
+html:`<div style="width:${sz}px;height:${sz}px;background:${bg};border:2.5px solid #fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff;font-size:${sz<38?'0.72':'0.85'}rem;font-family:'Barlow Condensed',sans-serif;box-shadow:0 2px 8px rgba(0,0,0,.25)">${n}</div>`,
+
+iconSize:[sz,sz],iconAnchor:[sz/2,sz/2]
+
+});
+
+}
+
+});
+
+const heatPts=[];
+
+data.forEach(d=>{
+
+L.marker([d.lat,d.lon],{icon:mkIcon(gCol(d))})
+
+.bindPopup(mkPopup(d),{maxWidth:260})
+
+.addTo(clusterGroup);
+
+const intensity = d.score > 0 ? Math.min(1, d.score / 30) : 0.15;
+
+heatPts.push([d.lat,d.lon,intensity]);
+
+});
+
+if(layerOn.clusters) clusterGroup.addTo(map);
+
+heatLyr = L.heatLayer(heatPts, {
+
+radius:  30,
+
+blur:    18,
+
+maxZoom: 18,
+
+max:     1.0,
+
+minOpacity: 0.55,
+
+gradient: {
+
+0.0: 'rgba(0,107,60,0)',
+
+0.2: '#1a9850',
+
+0.4: '#fee08b',
+
+0.65:'#fc8d59',
+
+0.85:'#d73027',
+
+1.0: '#a50026'
+
+}
+
+});
+
+if(layerOn.calor) heatLyr.addTo(map);
+
 }
 
 /* ── ZONAS CRÍTICAS ── */
+
 function buildZonas(data){
-  if(zonasGroup){map.removeLayer(zonasGroup);zonasGroup=null;}
-  const pts=data;                          // TODOS los puntos, no solo score>0
-  if(pts.length<2){updateZonasUI([]);return;}
 
-  const labels=dbscan(pts,EPS_KM,MIN_PTS);
-  const clusters={};
-  labels.forEach((l,i)=>{ if(l<0)return; if(!clusters[l])clusters[l]=[]; clusters[l].push(pts[i]); });
+if(zonasGroup){map.removeLayer(zonasGroup);zonasGroup=null;}
 
-  zonasGroup=L.layerGroup();
-  const criticas=[];
+const pts=data;                          // TODOS los puntos, no solo score>0
 
-  Object.values(clusters).forEach(members=>{
-    const ts=members.reduce((a,d)=>a+d.score,0);
-    const tm=members.reduce((a,d)=>a+d.muertos,0);
-    const th=members.reduce((a,d)=>a+d.heridos,0);
-    if(ts<umbral) return;
-    const cLat=members.reduce((a,d)=>a+d.lat,0)/members.length;
-    const cLon=members.reduce((a,d)=>a+d.lon,0)/members.length;
+if(pts.length<2){updateZonasUI([]);return;}
 
-    // Radio dinámico: encierra todos los puntos del clúster + 30 m de margen
-    const radioM = Math.max(
-      60,
-      Math.max(...members.map(d => hav(cLat,cLon,d.lat,d.lon)*1000)) + 30
-    );
+const labels=dbscan(pts,EPS_KM,MIN_PTS);
 
-    criticas.push({cLat,cLon,ts,tm,th,n:members.length,radioM});
+const clusters={};
 
-    const op=Math.min(0.28, 0.07 + (ts/120)*0.21);
-    L.circle([cLat,cLon],{
-      radius:radioM, color:'#C8102E', weight:1.5,
-      dashArray:'5 4', fillColor:'#C8102E', fillOpacity:op
-    }).bindPopup(`
-      <div style="min-width:180px;padding:2px 0">
-        <div class="pop-title">🚨 Zona Crítica</div>
-        <div class="pop-row"><span>🚦 Siniestros</span>${members.length}</div>
-        <div class="pop-row"><span>⚰️ Fallecidos</span>${tm}</div>
-        <div class="pop-row"><span>🤕 Heridos</span>${th}</div>
-        <div class="pop-row"><span>⚡ Puntaje</span><strong style="color:#C8102E">${ts} pts</strong></div>
-        <div style="font-size:.64rem;color:var(--fg-dim);margin-top:5px">Radio: ${Math.round(radioM)} m (encierra todos los puntos del clúster)</div>
-      </div>`)
-    .addTo(zonasGroup);
-  });
+labels.forEach((l,i)=>{ if(l<0)return; if(!clusters[l])clusters[l]=[]; clusters[l].push(pts[i]); });
 
-  if(layerOn.zonas) zonasGroup.addTo(map);
-  updateZonasUI(criticas);
+zonasGroup=L.layerGroup();
+
+const criticas=[];
+
+Object.values(clusters).forEach(members=>{
+
+const ts=members.reduce((a,d)=>a+d.score,0);
+
+const tm=members.reduce((a,d)=>a+d.muertos,0);
+
+const th=members.reduce((a,d)=>a+d.heridos,0);
+
+if(ts<umbral) return;
+
+const cLat=members.reduce((a,d)=>a+d.lat,0)/members.length;
+
+const cLon=members.reduce((a,d)=>a+d.lon,0)/members.length;
+
+// Radio dinámico: encierra todos los puntos del clúster + 30 m de margen
+
+const radioM = Math.max(
+
+60,
+
+Math.max(...members.map(d => hav(cLat,cLon,d.lat,d.lon)*1000)) + 30
+
+);
+
+criticas.push({cLat,cLon,ts,tm,th,n:members.length,radioM});
+
+const op=Math.min(0.28, 0.07 + (ts/120)*0.21);
+
+L.circle([cLat,cLon],{
+
+radius:radioM, color:'#C8102E', weight:1.5,
+
+dashArray:'5 4', fillColor:'#C8102E', fillOpacity:op
+
+}).bindPopup(`
+
+<div style="min-width:180px;padding:2px 0">
+
+<div class="pop-title">🚨 Zona Crítica</div>
+
+<div class="pop-row"><span>🚦 Siniestros</span>${members.length}</div>
+
+<div class="pop-row"><span>⚰️ Fallecidos</span>${tm}</div>
+
+<div class="pop-row"><span>🤕 Heridos</span>${th}</div>
+
+<div class="pop-row"><span>⚡ Puntaje</span><strong style="color:#C8102E">${ts} pts</strong></div>
+
+<div style="font-size:.64rem;color:var(--fg-dim);margin-top:5px">Radio: ${Math.round(radioM)} m (encierra todos los puntos del clúster)</div>
+
+</div>`)
+
+.addTo(zonasGroup);
+
+});
+
+if(layerOn.zonas) zonasGroup.addTo(map);
+
+updateZonasUI(criticas);
+
 }
 
 function updateZonasUI(list){
-  document.getElementById('kpiZonas').textContent=list.length;
-  document.getElementById('stZonas').textContent=list.length;
-  const top=[...list].sort((a,b)=>b.ts-a.ts).slice(0,10);
-  const tb=document.getElementById('zonasBody');
-  if(!top.length){
-    tb.innerHTML='<tr><td colspan="3" style="color:var(--fg-dim);padding:6px">Sin zonas con umbral actual</td></tr>';
-    return;
-  }
-  tb.innerHTML=top.map((z,i)=>`
-    <tr>
-      <td>${i+1}</td>
-      <td>${z.n} (⚰️${z.tm}&nbsp;🤕${z.th})</td>
-      <td class="${z.ts>=60?'score-hi':z.ts>=28?'score-md':''}">${z.ts}</td>
-    </tr>`).join('');
+
+document.getElementById('kpiZonas').textContent=list.length;
+
+document.getElementById('stZonas').textContent=list.length;
+
+const top=[...list].sort((a,b)=>b.ts-a.ts).slice(0,10);
+
+const tb=document.getElementById('zonasBody');
+
+if(!top.length){
+
+tb.innerHTML='<tr><td colspan="3" style="color:var(--fg-dim);padding:6px">Sin zonas con umbral actual</td></tr>';
+
+return;
+
+}
+
+tb.innerHTML=top.map((z,i)=>`
+
+<tr>
+
+<td>${i+1}</td>
+
+<td>${z.n} (⚰️${z.tm}&nbsp;🤕${z.th})</td>
+
+<td class="${z.ts>=60?'score-hi':z.ts>=28?'score-md':''}">${z.ts}</td>
+
+</tr>`).join('');
+
 }
 
 /* ── KPIs ── */
+
 function updateKPIs(data){
-  document.getElementById('kpiTotal').textContent=data.length;
-  document.getElementById('kpiFatales').textContent=data.reduce((s,d)=>s+d.muertos,0);
-  document.getElementById('kpiHeridos').textContent=data.reduce((s,d)=>s+d.heridos,0);
-  document.getElementById('stPuntos').textContent=data.length;
+
+document.getElementById('kpiTotal').textContent=data.length;
+
+document.getElementById('kpiFatales').textContent=data.reduce((s,d)=>s+d.muertos,0);
+
+document.getElementById('kpiHeridos').textContent=data.reduce((s,d)=>s+d.heridos,0);
+
+document.getElementById('stPuntos').textContent=data.length;
+
 }
 
 /* ── FILTROS ── */
-function populateSelect(id,vals){
-  const sel=document.getElementById(id);
-  while(sel.options.length>1) sel.remove(1);
-  [...vals].sort().forEach(v=>{ const o=document.createElement('option'); o.value=o.textContent=v; sel.appendChild(o); });
-}
-function populateFilters(){
-  populateSelect('fAno',  [...new Set(allData.map(d=>d.ano).filter(Boolean))]);
-  populateSelect('fClase',[...new Set(allData.map(d=>d.clase).filter(Boolean))]);
-}
-function getGravChecked(){
-  return [...document.querySelectorAll('.grav-checks input[type=checkbox]:checked')].map(c=>c.value);
-}
-function applyFilters(){
-  const ano  = document.getElementById('fAno').value;
-  const cls  = document.getElementById('fClase').value;
-  const gravs = getGravChecked();   // array vacío = todas
 
-  filteredData = allData.filter(d => {
-    if(ano && d.ano !== ano) return false;
-    if(cls && d.clase !== cls) return false;
-    if(gravs.length > 0){
-      const esFatal  = d.muertos > 0;
-      const esHerido = !esFatal && d.heridos > 0;
-      const esDanos  = !esFatal && !esHerido;
-      const ok = (gravs.includes('fatal')   && esFatal)
-              || (gravs.includes('heridos') && esHerido)
-              || (gravs.includes('danos')   && esDanos);
-      if(!ok) return false;
-    }
-    return true;
-  });
-  refresh();
+function populateSelect(id,vals){
+
+const sel=document.getElementById(id);
+
+while(sel.options.length>1) sel.remove(1);
+
+[...vals].sort().forEach(v=>{ const o=document.createElement('option'); o.value=o.textContent=v; sel.appendChild(o); });
+
 }
+
+function populateFilters(){
+
+const anos = [...new Set(allData.map(d=>d.ano).filter(Boolean))].sort();
+const sel = document.getElementById('fAno');
+sel.innerHTML = '';
+anos.forEach(a => {
+const opt = document.createElement('option');
+opt.value = a; opt.textContent = a;
+sel.appendChild(opt);
+});
+
+populateSelect('fClase',[...new Set(allData.map(d=>d.clase).filter(Boolean))]);
+
+}
+
+function getGravChecked(){
+
+return [...document.querySelectorAll('.grav-checks input[type=checkbox]:checked')].map(c=>c.value);
+
+}
+
+function applyFilters(){
+
+const anos = [...document.querySelectorAll('#fAno option:checked')].map(o=>o.value);
+
+const cls  = document.getElementById('fClase').value;
+
+const gravs = getGravChecked();   // array vacío = todas
+
+filteredData = allData.filter(d => {
+
+if(anos.length > 0 && !anos.includes(d.ano)) return false;
+
+if(cls && d.clase !== cls) return false;
+
+if(gravs.length > 0){
+
+const esFatal  = d.muertos > 0;
+
+const esHerido = !esFatal && d.heridos > 0;
+
+const esDanos  = !esFatal && !esHerido;
+
+const ok = (gravs.includes('fatal')   && esFatal)
+
+|| (gravs.includes('heridos') && esHerido)
+
+|| (gravs.includes('danos')   && esDanos);
+
+if(!ok) return false;
+
+}
+
+return true;
+
+});
+
+refresh();
+
+}
+
 function refresh(){ updateKPIs(filteredData); buildMarkers(filteredData); buildZonas(filteredData); }
 
 /* ── TOGGLE CAPAS ── */
+
 function toggleLayer(name){
-  layerOn[name]=!layerOn[name];
-  const cap=name.charAt(0).toUpperCase()+name.slice(1);
-  const btn=document.getElementById('btn'+cap);
-  layerOn[name]?btn.classList.add('on'):btn.classList.remove('on');
-  if(name==='clusters'&&clusterGroup) layerOn.clusters?clusterGroup.addTo(map):map.removeLayer(clusterGroup);
-  if(name==='zonas'   &&zonasGroup)   layerOn.zonas   ?zonasGroup.addTo(map)  :map.removeLayer(zonasGroup);
-  if(name==='calor'   &&heatLyr)      layerOn.calor   ?heatLyr.addTo(map)     :map.removeLayer(heatLyr);
+
+layerOn[name]=!layerOn[name];
+
+const cap=name.charAt(0).toUpperCase()+name.slice(1);
+
+const btn=document.getElementById('btn'+cap);
+
+layerOn[name]?btn.classList.add('on'):btn.classList.remove('on');
+
+if(name==='clusters'&&clusterGroup) layerOn.clusters?clusterGroup.addTo(map):map.removeLayer(clusterGroup);
+
+if(name==='zonas'   &&zonasGroup)   layerOn.zonas   ?zonasGroup.addTo(map)  :map.removeLayer(zonasGroup);
+
+if(name==='calor'   &&heatLyr)      layerOn.calor   ?heatLyr.addTo(map)     :map.removeLayer(heatLyr);
+
 }
 
 /* ── SLIDER ── */
+
 function onSlider(val){
-  umbral=parseInt(val,10);
-  document.getElementById('sliderVal').textContent=umbral;
-  buildZonas(filteredData);
+
+umbral=parseInt(val,10);
+
+document.getElementById('sliderVal').textContent=umbral;
+
+buildZonas(filteredData);
+
 }
 
 /* ── CARGA ── */
+
 async function loadData(){
-  const overlay=document.getElementById('loadOverlay');
-  const msg=document.getElementById('loadMsg');
-  const proxies=[
-    CSV_URL,
-    `https://api.allorigins.win/raw?url=${encodeURIComponent(CSV_URL)}`,
-    `https://corsproxy.io/?${encodeURIComponent(CSV_URL)}`
-  ];
-  let text=null;
-  for(const url of proxies){
-    try{
-      msg.textContent=url===CSV_URL?'Conectando con Google Sheets…':'Usando proxy CORS…';
-      const res=await fetch(url,{signal:AbortSignal.timeout(12000)});
-      if(!res.ok) continue;
-      const t=await res.text();
-      if(t&&t.length>100){text=t;break;}
-    }catch(_){}
-  }
-  if(!text||text.length<100){
-    overlay.innerHTML=`
-      <div style="color:#C8102E;font-weight:700;font-size:.95rem;margin-bottom:8px">❌ No se pudieron cargar los datos</div>
-      <div style="font-size:.76rem;color:#5A6475;max-width:300px;text-align:center">
-        Verifica que el Google Sheet esté publicado como CSV.
-      </div>
-      <button class="retry-btn" onclick="location.reload()">🔄 Reintentar</button>`;
-    return;
-  }
-  msg.textContent='Procesando registros…';
-  try{
-    allData=parseCSV(text).map(parseReg).filter(Boolean);
-    if(allData.length===0){
-      msg.textContent='⚠️ Sin registros con coordenadas válidas en Aguazul';
-      return;
-    }
-    populateFilters();
-    filteredData=[...allData];
-    refresh();
-    const lats=allData.map(d=>d.lat), lons=allData.map(d=>d.lon);
-    try{ map.fitBounds([[Math.min(...lats),Math.min(...lons)],[Math.max(...lats),Math.max(...lons)]],{padding:[30,30],maxZoom:15}); }catch(_){}
-    const now=new Date().toLocaleString('es-CO',{timeZone:'America/Bogota',dateStyle:'short',timeStyle:'short'});
-    document.getElementById('stFecha').textContent=now;
-    overlay.classList.add('hidden');
-  }catch(err){
-    msg.textContent='❌ Error procesando el CSV: '+err.message;
-    console.error(err);
-  }
+
+const overlay=document.getElementById('loadOverlay');
+
+const msg=document.getElementById('loadMsg');
+
+const proxies=[
+
+CSV_URL,
+
+`https://api.allorigins.win/raw?url=${encodeURIComponent(CSV_URL)}`,
+
+`https://corsproxy.io/?${encodeURIComponent(CSV_URL)}`
+
+];
+
+let text=null;
+
+for(const url of proxies){
+
+try{
+
+msg.textContent=url===CSV_URL?'Conectando con Google Sheets…':'Usando proxy CORS…';
+
+const res=await fetch(url,{signal:AbortSignal.timeout(12000)});
+
+if(!res.ok) continue;
+
+const t=await res.text();
+
+if(t&&t.length>100){text=t;break;}
+
+}catch(_){}
+
+}
+
+if(!text||text.length<100){
+
+overlay.innerHTML=`
+
+<div style="color:#C8102E;font-weight:700;font-size:.95rem;margin-bottom:8px">❌ No se pudieron cargar los datos</div>
+
+<div style="font-size:.76rem;color:#5A6475;max-width:300px;text-align:center">
+
+Verifica que el Google Sheet esté publicado como CSV.
+
+</div>
+
+<button class="retry-btn" onclick="location.reload()">🔄 Reintentar</button>`;
+
+return;
+
+}
+
+msg.textContent='Procesando registros…';
+
+try{
+
+allData=parseCSV(text).map(parseReg).filter(Boolean);
+
+if(allData.length===0){
+
+msg.textContent='⚠️ Sin registros con coordenadas válidas en Aguazul';
+
+return;
+
+}
+
+populateFilters();
+
+filteredData=[...allData];
+
+refresh();
+
+const lats=allData.map(d=>d.lat), lons=allData.map(d=>d.lon);
+
+try{ map.fitBounds([[Math.min(...lats),Math.min(...lons)],[Math.max(...lats),Math.max(...lons)]],{padding:[30,30],maxZoom:15}); }catch(_){}
+
+const now=new Date().toLocaleString('es-CO',{timeZone:'America/Bogota',dateStyle:'short',timeStyle:'short'});
+
+document.getElementById('stFecha').textContent=now;
+
+overlay.classList.add('hidden');
+
+}catch(err){
+
+msg.textContent='❌ Error procesando el CSV: '+err.message;
+
+console.error(err);
+
+}
+
 }
 
 loadData();
+
 </script>
+
 </body>
+
 </html>
