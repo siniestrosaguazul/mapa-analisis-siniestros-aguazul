@@ -406,6 +406,33 @@ cursor: pointer;
 
 select:focus { border-color: var(--azul); }
 
+/* Dropdown año multi-select */
+.ano-dropdown { position: relative; margin-bottom: 7px; }
+.ano-btn {
+width: 100%; background: var(--surface2); border: 1px solid var(--border);
+color: var(--fg); border-radius: 6px; padding: 6px 28px 6px 8px;
+font-size: 0.75rem; font-family: 'Inter', sans-serif;
+cursor: pointer; text-align: left; outline: none;
+display: flex; justify-content: space-between; align-items: center;
+}
+.ano-btn:focus, .ano-btn.open { border-color: var(--azul); }
+.ano-arrow { font-size: 0.6rem; transition: transform .15s; flex-shrink:0; }
+.ano-btn.open .ano-arrow { transform: rotate(180deg); }
+.ano-panel {
+display: none; position: absolute; top: calc(100% + 3px); left: 0; right: 0;
+background: var(--surface2); border: 1px solid var(--azul);
+border-radius: 6px; z-index: 9999; max-height: 180px; overflow-y: auto;
+box-shadow: 0 4px 12px rgba(0,0,0,.18); padding: 4px 0;
+}
+.ano-dropdown.open .ano-panel { display: block; }
+.ano-opt {
+display: flex; align-items: center; gap: 7px; padding: 5px 10px;
+font-size: 0.73rem; color: var(--fg-muted); cursor: pointer;
+}
+.ano-opt:hover { background: rgba(37,99,235,.08); }
+.ano-opt input[type=checkbox] { accent-color: var(--azul); cursor: pointer; width: 14px; height: 14px; flex-shrink:0; }
+.ano-opt:has(input:checked) { color: var(--fg); font-weight: 500; }
+
 /* Leyenda */
 
 .leg-item {
@@ -802,9 +829,14 @@ oninput="onSlider(this.value)" />
 
 <div class="sec-title">🔍 Filtros</div>
 
-<label class="flt-label">Año <span style="font-size:.6rem;color:var(--fg-dim)">(selección múltiple)</span></label>
+<label class="flt-label">Año</label>
 
-<select id="fAno" multiple onchange="applyFilters()" style="height:auto;min-height:36px"></select>
+<div class="ano-dropdown" id="anoDropdown">
+<button type="button" class="ano-btn" id="anoBtnLabel" onclick="toggleAnoDropdown()">
+<span id="anoBtnText">Todos los años</span><span class="ano-arrow">▼</span>
+</button>
+<div class="ano-panel" id="anoPanel"></div>
+</div>
 
 <label class="flt-label">Clase de accidente</label>
 
@@ -1477,17 +1509,37 @@ while(sel.options.length>1) sel.remove(1);
 function populateFilters(){
 
 const anos = [...new Set(allData.map(d=>d.ano).filter(Boolean))].sort();
-const sel = document.getElementById('fAno');
-sel.innerHTML = '';
+const panel = document.getElementById('anoPanel');
+panel.innerHTML = '';
 anos.forEach(a => {
-const opt = document.createElement('option');
-opt.value = a; opt.textContent = a;
-sel.appendChild(opt);
+const lbl = document.createElement('label');
+lbl.className = 'ano-opt';
+lbl.innerHTML = `<input type="checkbox" value="${a}" onchange="updateAnoLabel();applyFilters()" />${a}`;
+panel.appendChild(lbl);
 });
 
 populateSelect('fClase',[...new Set(allData.map(d=>d.clase).filter(Boolean))]);
 
 }
+
+function toggleAnoDropdown(){
+const dd = document.getElementById('anoDropdown');
+const btn = document.getElementById('anoBtnLabel');
+const isOpen = dd.classList.toggle('open');
+btn.classList.toggle('open', isOpen);
+}
+function updateAnoLabel(){
+const checked = [...document.querySelectorAll('#anoPanel input[type=checkbox]:checked')].map(c=>c.value);
+document.getElementById('anoBtnText').textContent = checked.length === 0 ? 'Todos los años' : checked.join(', ');
+}
+// Cerrar dropdown al hacer clic fuera
+document.addEventListener('click', e => {
+const dd = document.getElementById('anoDropdown');
+if(dd && !dd.contains(e.target)){
+dd.classList.remove('open');
+document.getElementById('anoBtnLabel').classList.remove('open');
+}
+});
 
 function getGravChecked(){
 
@@ -1497,7 +1549,7 @@ return [...document.querySelectorAll('.grav-checks input[type=checkbox]:checked'
 
 function applyFilters(){
 
-const anos = [...document.querySelectorAll('#fAno option:checked')].map(o=>o.value);
+const anos = [...document.querySelectorAll('#anoPanel input[type=checkbox]:checked')].map(c=>c.value);
 
 const cls  = document.getElementById('fClase').value;
 
